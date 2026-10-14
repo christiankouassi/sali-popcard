@@ -6,8 +6,11 @@ export function pool() {
   const isLocal =
     process.env.DATABASE_URL.includes("localhost") ||
     process.env.DATABASE_URL.includes("127.0.0.1");
+  const connectionString = isLocal
+    ? process.env.DATABASE_URL
+    : process.env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/g, "");
   return (globalPg.popcardPool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: isLocal ? false : { rejectUnauthorized: false },
     max: 3,
     idleTimeoutMillis: 10000,
