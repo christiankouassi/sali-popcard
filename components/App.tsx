@@ -88,8 +88,7 @@ export default function App({ path }: { path: string }) {
       <Auth
         path={path}
         onDone={() => {
-          refresh();
-          router.push("/app");
+          window.location.href = "/app";
         }}
       />
     );
