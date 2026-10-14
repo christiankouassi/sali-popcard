@@ -27,6 +27,7 @@ export async function sendMail(
       port: Number(process.env.SMTP_PORT || 587),
       secure: process.env.SMTP_PORT === "465",
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+      tls: { rejectUnauthorized: false },
     });
     await smtp.sendMail({
       from: process.env.MAIL_FROM,
