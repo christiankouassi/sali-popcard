@@ -3,8 +3,12 @@ const globalPg = globalThis as unknown as { popcardPool?: Pool };
 export function pool() {
   if (!process.env.DATABASE_URL)
     throw new Error("La base PostgreSQL doit être configurée.");
+  const isLocal =
+    process.env.DATABASE_URL.includes("localhost") ||
+    process.env.DATABASE_URL.includes("127.0.0.1");
   return (globalPg.popcardPool ??= new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
     max: 3,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
