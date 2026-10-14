@@ -1,0 +1,584 @@
+.ref-card {
+  --f-ui: Montserrat, sans-serif;
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 85.6/54;
+  border-radius: 3.7% / 5.9%;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(13, 24, 37, 0.12),
+    0 10px 28px -8px rgba(13, 24, 37, 0.35);
+  background: #fff;
+}
+.ref-card .card-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: -8px;
+}
+.ref-card .wm {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  z-index: 5;
+}
+.ref-card .wm span {
+  transform: rotate(-24deg);
+  font: 700 5.2cqw/1.9 var(--f-ui);
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.28);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  text-align: center;
+  mix-blend-mode: difference;
+}
+.ref-card .fill {
+  position: absolute;
+  inset: 0;
+}
+.ref-card .qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ref-card .logo-tile {
+  background: #fff;
+  border-radius: 2.4cqw;
+  display: grid;
+  place-items: center;
+  padding: 2.2cqw;
+}
+.ref-card .logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.ref-card .initials {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  color: #fff;
+}
+.ref-card .A-recto {
+  display: grid;
+  place-items: center;
+}
+.ref-card .A-recto .lg {
+  width: 62%;
+  height: 34%;
+  display: grid;
+  place-items: center;
+}
+.ref-card .A-verso .qr {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  width: 46cqw;
+  transform: translateX(-50%);
+}
+.ref-card .A-verso .band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18%;
+}
+.ref-card .B-recto .left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 44%;
+  display: grid;
+  place-items: center;
+  padding: 6cqw;
+}
+.ref-card .B-recto .right {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 56%;
+  padding: 7cqw 5cqw 5cqw 9cqw;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.ref-card .B-recto .nm {
+  font-weight: 700;
+  font-size: 5.4cqw;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.ref-card .B-recto .tt {
+  font-weight: 700;
+  font-size: 4.2cqw;
+  line-height: 1.2;
+  margin-top: 0.8cqw;
+}
+.ref-card .B-recto .lines {
+  margin-top: auto;
+  display: grid;
+  gap: 3.4cqw;
+  font-size: 2.95cqw;
+  letter-spacing: 0.02em;
+}
+.ref-card .B-recto .lines div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 4cqw;
+  line-height: 4cqw;
+}
+.ref-card .B-recto .cpill {
+  position: absolute;
+  left: calc(44% - 3.4cqw);
+  bottom: 3.2cqw;
+  width: 6.8cqw;
+  border-radius: 3.4cqw;
+  display: grid;
+  gap: 3.4cqw;
+  padding: 1.2cqw 0;
+  justify-items: center;
+  border: 0.6cqw solid #fff;
+}
+.ref-card .B-recto .cpill svg {
+  width: 3.4cqw;
+  height: 4cqw;
+  display: block;
+}
+.ref-card .B-verso .frame {
+  position: absolute;
+  left: 50%;
+  top: 7%;
+  width: 40cqw;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border: 0.7cqw solid;
+  border-radius: 4cqw;
+  padding: 3.2cqw;
+}
+.ref-card .B-verso .band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 15%;
+}
+.ref-card .C-recto {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 6.5cqw 7cqw;
+}
+.ref-card .C-recto .lg {
+  position: absolute;
+  right: 7cqw;
+  top: 6.5cqw;
+  width: 24cqw;
+  height: 13cqw;
+  display: grid;
+  place-items: center end;
+}
+.ref-card .C-recto .nm {
+  font-size: 7cqw;
+  line-height: 1.05;
+  font-weight: 700;
+  max-width: 70%;
+}
+.ref-card .C-recto .rule {
+  width: 10cqw;
+  height: 0.7cqw;
+  margin: 2.6cqw 0 2.2cqw;
+}
+.ref-card .C-recto .tt {
+  font-size: 2.9cqw;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ref-card .C-recto .lines {
+  margin-top: 4.5cqw;
+  display: flex;
+  gap: 1cqw 5cqw;
+  flex-wrap: wrap;
+  font-size: 2.8cqw;
+}
+.ref-card .C-verso {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2.6cqw;
+}
+.ref-card .C-verso .tile {
+  width: 34cqw;
+  aspect-ratio: 1;
+  background: #fff;
+  border-radius: 3.4cqw;
+  padding: 2.6cqw;
+}
+.ref-card .C-verso .cap {
+  color: #fff;
+  font-size: 2.9cqw;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.reference-mini {
+  --p: #122049;
+  --a: #d7141e;
+  --ft: serif;
+  --fb: sans-serif;
+  font-family: var(--fb);
+  color: #334155;
+  font-size: 12px;
+  background: #f5f7fb;
+  min-height: 100%;
+}
+.reference-mini .ms-head {
+  background: var(--p);
+  height: 92px;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+.reference-mini .ms-head .lgw {
+  height: 62px;
+  max-width: 78%;
+  display: grid;
+  place-items: center;
+}
+.reference-mini .ms-head .logo-tile {
+  border-radius: 10px;
+  padding: 7px 12px;
+  height: 62px;
+}
+.reference-mini .ms-card {
+  background: #fff;
+  padding: 22px 18px 8px;
+}
+.reference-mini .ms-name {
+  font-family: var(--ft);
+  color: var(--p);
+  font-size: 25px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1;
+}
+.reference-mini .ms-title {
+  font-style: italic;
+  text-align: center;
+  color: var(--p);
+  opacity: 0.78;
+  font-size: 13px;
+  margin-top: 6px;
+}
+.reference-mini .ms-co {
+  text-align: center;
+  color: var(--a);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+.reference-mini .ms-rule {
+  width: 40px;
+  height: 2px;
+  background: var(--a);
+  margin: 10px auto 14px;
+  border-radius: 2px;
+}
+.reference-mini .ms-desc {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5b6b83;
+  margin: 0 0 16px;
+}
+.reference-mini .ms-desc b {
+  color: var(--p);
+}
+.reference-mini .ms-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.reference-mini .ms-btn {
+  background: #f4f6fa;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 6px;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: var(--p);
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+  font-family: var(--fb);
+}
+.reference-mini .ms-btn.main-action {
+  background: var(--p);
+  color: #fff;
+}
+.reference-mini .ms-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.reference-mini .ms-sec {
+  padding: 14px 0;
+  border-top: 1px solid #e5eaf2;
+}
+.reference-mini .ms-sec h4 {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-family: var(--fb);
+}
+.reference-mini .ms-sec p {
+  margin: 0 0 6px;
+  color: var(--p);
+  font-size: 12.5px;
+  word-break: break-word;
+}
+.reference-mini .ms-sec p.lnk {
+  color: color-mix(in srgb, var(--p) 75%, #4472a8);
+}
+.reference-mini .ms-sec .map {
+  color: var(--a);
+  font-weight: 700;
+  font-size: 12px;
+}
+.reference-mini .ms-soc {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.reference-mini .ms-soc span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f4f6fa;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--p);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.reference-mini .ms-soc svg {
+  width: 14px;
+  height: 14px;
+}
+.reference-mini .ms-foot {
+  padding: 18px 16px 22px;
+  text-align: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.reference-mini .ms-foot .fl {
+  height: 36px;
+  display: grid;
+  place-items: center;
+  max-width: 70%;
+}
+.reference-mini .ms-foot .fl .logo-tile {
+  height: 36px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.reference-mini .ms-foot small {
+  color: #8a97aa;
+  font-size: 11px;
+}
+.reference-mini .ms-made {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e5eaf2;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #64748b;
+  font-family: "Montserrat", sans-serif;
+}
+.reference-mini .ms-made b {
+  color: var(--bleu);
+}
+
+.ref-card .logo-holder,
+.ref-card .logo-tile {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.ref-card .initials {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  max-height: 100%;
+  font-size: 8cqw;
+}
+.ref-card .C-recto .initials {
+  width: 13cqw;
+  height: 13cqw;
+  font-size: 5cqw;
+}
+.ref-card .B-recto .cpill svg {
+  stroke: currentColor;
+}
+.reference-mini {
+  position: relative;
+  max-width: 420px;
+  width: 100%;
+  margin: auto;
+  --bleu: #1c2c46;
+  --f-ui: Montserrat, sans-serif;
+  overflow: hidden;
+  border: 1px solid #e5edf3;
+  box-shadow: 0 14px 45px #102c2210;
+}
+.reference-mini .ms-name {
+  margin: 0;
+  letter-spacing: normal;
+}
+.reference-mini .ms-line {
+  display: block;
+  color: var(--p);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+  margin: 0 0 6px;
+}
+.reference-mini .ms-soc a {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #f4f6fa;
+  color: var(--p);
+  font-size: 11.5px;
+}
+.reference-mini .logo-holder {
+  height: 62px;
+  display: grid;
+  place-items: center;
+}
+.reference-mini .logo-img {
+  display: block;
+  max-width: 100%;
+  max-height: 62px;
+  object-fit: contain;
+}
+.reference-mini .initials {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.reference-mini .ms-foot .fl {
+  height: 36px;
+}
+.reference-mini .ms-foot .logo-img {
+  max-height: 36px;
+}
+.public-page .reference-mini {
+  min-height: 90vh;
+}
+.hero-phone .reference-mini {
+  border: 6px solid #23372e;
+  border-radius: 28px;
+}
+.hero-phone .reference-mini .ms-name {
+  font-size: 17px;
+}
+.hero-phone .reference-mini .ms-card {
+  padding: 18px 14px 8px;
+}
+.hero-phone .reference-mini .ms-head {
+  height: 72px;
+}
+.hero-phone .reference-mini .ms-head .logo-holder {
+  height: 44px;
+}
+.hero-phone .reference-mini .ms-btn {
+  font-size: 9px;
+  padding: 9px 5px;
+}
+.production-faces .ref-card {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+@media print {
+  .production-faces .ref-card {
+    width: 85.6mm;
+    height: 54mm;
+    margin: 0;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+.ref-card .A-recto .lg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ref-card .A-recto .initials {
+  width: 20cqw;
+  height: 20cqw;
+  max-height: none;
+  aspect-ratio: 1;
+  font-size: 6cqw;
+}
+.ref-card .C-recto .tt span {
+  display: block;
+}
+.ref-card .C-recto .company-line {
+  margin-top: 1cqw;
+}
+.ref-card .C-recto .lines {
+  margin-top: 3cqw;
+}
+.reference-mini .ms-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.reference-mini .placeholder-value {
+  color: #7d899a;
+  font-style: italic;
+}
+.reference-mini .ms-soc span {
+  font-size: 11px;
+  padding: 6px 8px;
+}
+.reference-mini .ms-made {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  text-decoration: none;
+}
+.reference-mini .logo-placeholder {
+  background: #fff;
+  color: var(--p);
+}

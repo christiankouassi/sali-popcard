@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS users(id uuid PRIMARY KEY, email text NOT NULL UNIQUE, name text NOT NULL, password_hash text NOT NULL, is_admin boolean NOT NULL DEFAULT false, verified_at timestamptz, profile jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS sessions(token_hash text PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS tokens(token_hash text PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,kind text NOT NULL,expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS files(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id),name text NOT NULL,mime text NOT NULL,bytes bytea NOT NULL,created_at timestamptz DEFAULT now());
+CREATE TABLE IF NOT EXISTS cards(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id),slug text NOT NULL UNIQUE,status text NOT NULL DEFAULT 'draft',data jsonb NOT NULL,logo_id uuid REFERENCES files(id),created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
+CREATE TABLE IF NOT EXISTS orders(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id),card_id uuid NOT NULL REFERENCES cards(id),reference text NOT NULL UNIQUE,status text NOT NULL DEFAULT 'awaiting_receipt',quantity integer NOT NULL CHECK(quantity BETWEEN 1 AND 500),amount integer NOT NULL,shipping integer NOT NULL,reorder boolean NOT NULL DEFAULT false,snapshot jsonb NOT NULL,billing jsonb NOT NULL,delivery jsonb NOT NULL,receipt_id uuid REFERENCES files(id),note text,tracking text,paid_at timestamptz,rights_at timestamptz NOT NULL,terms_version text NOT NULL DEFAULT '2026-10-v2',created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS one_pending_order ON orders(card_id) WHERE status IN ('awaiting_receipt','review');
+CREATE TABLE IF NOT EXISTS order_events(id bigserial PRIMARY KEY,order_id uuid NOT NULL REFERENCES orders(id),actor_id uuid REFERENCES users(id),status text NOT NULL,message text,created_at timestamptz DEFAULT now());
+CREATE TABLE IF NOT EXISTS rate_limits(key text PRIMARY KEY,count integer NOT NULL,expires_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS mail_outbox(id uuid PRIMARY KEY,user_id uuid REFERENCES users(id),recipient text NOT NULL,subject text NOT NULL,body text NOT NULL,status text NOT NULL DEFAULT 'pending',created_at timestamptz DEFAULT now());
+
+CREATE TABLE IF NOT EXISTS preview_links(token_hash text PRIMARY KEY,card_id uuid NOT NULL REFERENCES cards(id) ON DELETE CASCADE,expires_at timestamptz NOT NULL);
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS original_logo_id uuid REFERENCES files(id);

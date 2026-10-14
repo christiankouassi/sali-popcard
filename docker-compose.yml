@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: popcard
+      POSTGRES_PASSWORD: popcard
+      POSTGRES_DB: popcard
+    ports:
+      - "5432:5432"
+    volumes:
+      - popcard_db:/var/lib/postgresql/data
+volumes:
+  popcard_db:
