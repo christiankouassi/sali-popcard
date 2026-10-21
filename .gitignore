@@ -4,3 +4,8 @@ node_modules/
 !.env.example
 *.log
 dist/
+tests/audit/
+tests/screenshots/
+tests/.smtp-outbox.txt
+.taste-skill/
+tsconfig.tsbuildinfo

@@ -19,7 +19,7 @@ try {
       DATABASE_URL: "postgresql://postgres@127.0.0.1:55432/postgres",
       APP_URL: "http://localhost:3000",
       MAIL_MODE: process.env.TEST_SMTP==="true"?"smtp":"log",
-      SMTP_HOST:"127.0.0.1",SMTP_PORT:"2526",SMTP_USER:"test",SMTP_PASSWORD:"test",MAIL_FROM:"contact@sali-digicom.com",
+      SMTP_HOST:"127.0.0.1",SMTP_PORT:"2526",SMTP_USER:"test",SMTP_PASSWORD:"test",SMTP_REQUIRE_TLS:"false",MAIL_FROM:"contact@sali-digicom.com",
       POPCARD_ORDERS_ENABLED: "true",
       POPCARD_BANK_HOLDER: "Test",
       POPCARD_BANK_RIB: "123",
@@ -46,9 +46,11 @@ try {
     await new Promise((r) => setTimeout(r, 300));
   }
   if (!ready) throw Error("Serveurs de test indisponibles.");
-  const child = start(["tests/integration.mjs"]);
-  const code = await new Promise((resolve) => child.on("exit", resolve));
-  if (code !== 0) throw Error("Échec du test d’intégration.");
+  for (const file of ["tests/integration.mjs", "tests/security.mjs"]) {
+    const child = start([file]);
+    const code = await new Promise((resolve) => child.on("exit", resolve));
+    if (code !== 0) throw Error("Échec du test : " + file);
+  }
 } finally {
   for (const p of children) p.kill("SIGTERM");
 }

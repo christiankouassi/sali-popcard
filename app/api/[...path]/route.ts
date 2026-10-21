@@ -69,13 +69,91 @@ const origin = () => {
     throw new Fault(503, "APP_URL doit être configurée.");
   return "http://localhost:3000";
 };
+// Protection CSRF : la requête doit venir de l'URL configurée ou du domaine
+// réellement servi (domaine personnalisé, aperçu Netlify). Le navigateur fixe
+// Origin et Host : une page tierce ne peut pas les falsifier.
+const sameOrigin = (req: NextRequest) => {
+  const o = req.headers.get("origin");
+  if (!o) return false;
+  if (o === origin()) return true;
+  const host = req.headers.get("host");
+  const proto = (
+    req.headers.get("x-forwarded-proto") ||
+    (process.env.NODE_ENV === "production" ? "https" : "http")
+  )
+    .split(",")[0]
+    .trim();
+  return !!host && o === `${proto}://${host}`;
+};
+// IP du visiteur : Netlify fournit un en-tête que le client ne peut pas
+// fixer. X-Forwarded-For sert de repli sur un autre hébergeur.
+const clientIp = (req: NextRequest) =>
+  req.headers.get("x-nf-client-connection-ip") ||
+  req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+  "inconnue";
+const uuid = (v: string | undefined) => {
+  if (!z.string().uuid().safeParse(v).success)
+    throw new Fault(404, "Élément introuvable.");
+  return v as string;
+};
 async function rate(key: string, max: number) {
   const r = await query(
     "INSERT INTO rate_limits(key,count,expires_at) VALUES($1,1,now()+interval '15 minutes') ON CONFLICT(key) DO UPDATE SET count=CASE WHEN rate_limits.expires_at<now() THEN 1 ELSE rate_limits.count+1 END, expires_at=CASE WHEN rate_limits.expires_at<now() THEN now()+interval '15 minutes' ELSE rate_limits.expires_at END RETURNING count",
     [key],
   );
+  // Entretien occasionnel : compteurs, jetons et aperçus expirés.
+  if (Math.random() < 0.02)
+    await Promise.all([
+      query("DELETE FROM rate_limits WHERE expires_at<now()"),
+      query("DELETE FROM tokens WHERE expires_at<now()"),
+      query("DELETE FROM preview_links WHERE expires_at<now()"),
+      query("DELETE FROM sessions WHERE expires_at<now()"),
+    ]);
   if (r.rows[0].count > max)
     throw new Fault(429, "Trop de tentatives. Réessayez dans 15 minutes.");
+}
+const fieldNames: Record<string, string> = {
+  name: "nom",
+  email: "e-mail",
+  password: "mot de passe",
+  confirmation: "confirmation du mot de passe",
+  current_password: "mot de passe actuel",
+  terms: "acceptation des conditions",
+  rights: "droits d’utilisation",
+  token: "lien",
+  firstName: "prénom",
+  lastName: "nom",
+  company: "société",
+  title: "fonction",
+  city: "ville",
+  desc: "description",
+  address: "adresse",
+  website: "site web",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
+  facebook: "Facebook",
+  phones: "téléphones",
+  emails: "e-mails de la carte",
+  quantity: "quantité",
+  billing_type: "type de facturation",
+  billing_name: "nom de facturation",
+  ice: "ICE",
+  country: "pays",
+  card_id: "PopCard",
+  status: "statut",
+  note: "note",
+  tracking: "numéro de suivi",
+};
+function zodMessage(e: z.ZodError) {
+  const keys = [
+    ...new Set(e.issues.map((i) => String(i.path[0] ?? "formulaire"))),
+  ];
+  const labels = keys.map((k) => fieldNames[k] || k);
+  const hint = keys.includes("password")
+    ? " Le mot de passe doit contenir 10 caractères minimum, avec lettres et chiffres."
+    : "";
+  return "Vérifiez : " + labels.join(", ") + "." + hint;
 }
 const publicUser = (u: any) => ({
   id: u.id,
@@ -146,7 +224,7 @@ async function handler(
     const path = (await params).path;
     const p = path.join("/");
     const post = req.method === "POST";
-    if (post && req.headers.get("origin") !== origin())
+    if (post && !sameOrigin(req))
       throw new Fault(403, "Origine de requête non autorisée.");
     if (
       post &&
@@ -154,7 +232,13 @@ async function handler(
         (path[0] === "cards" && path[2] === "logo" ? 7 : 4) * 1024 * 1024
     )
       throw new Fault(413, "Fichier trop volumineux.");
-    const json = () => req.json();
+    const json = async () => {
+      try {
+        return await req.json();
+      } catch {
+        throw new Fault(400, "Requête invalide.");
+      }
+    };
     const u = await currentUser();
     if (p === "config" && !post)
       return NextResponse.json({
@@ -193,7 +277,7 @@ async function handler(
       if (v.password !== v.confirmation)
         throw new Fault(422, "Les mots de passe diffèrent.");
       await rate("register:" + v.email, 5);
-      await rate("register-ip:" + req.headers.get("x-forwarded-for"), 15);
+      await rate("register-ip:" + clientIp(req), 15);
       const id = randomUUID();
       await query(
         "INSERT INTO users(id,email,name,password_hash) VALUES($1,$2,$3,$4)",
@@ -208,7 +292,7 @@ async function handler(
         .object({ email: emailSchema, password: z.string().max(128) })
         .parse(await json());
       await rate("login:" + v.email, 12);
-      await rate("login-ip:" + req.headers.get("x-forwarded-for"), 50);
+      await rate("login-ip:" + clientIp(req), 50);
       const r = await query("SELECT * FROM users WHERE email=$1", [v.email]);
       const user = r.rows[0];
       const valid = await bcrypt.compare(
@@ -228,6 +312,7 @@ async function handler(
     if (p === "auth/forgot" && post) {
       const v = z.object({ email: emailSchema }).parse(await json());
       await rate("forgot:" + v.email, 4);
+      await rate("forgot-ip:" + clientIp(req), 20);
       const r = await query("SELECT * FROM users WHERE email=$1", [v.email]);
       if (r.rows[0]) {
         const user = r.rows[0];
@@ -356,6 +441,7 @@ async function handler(
         .parse(await json());
       const changed = v.email !== u.email;
       if (changed) {
+        await rate("profile-email:" + u.id, 10);
         const row = await query("SELECT password_hash FROM users WHERE id=$1", [
           u.id,
         ]);
@@ -388,6 +474,7 @@ async function handler(
         .parse(await json());
       if (v.password !== v.confirmation)
         throw new Fault(422, "Les mots de passe diffèrent.");
+      await rate("password:" + u.id, 10);
       const r = await query("SELECT password_hash FROM users WHERE id=$1", [
         u.id,
       ]);
@@ -414,6 +501,7 @@ async function handler(
       );
     if (p === "cards" && post) {
       const v = cardSchema.parse(await json());
+      await rate("card-create:" + u.id, 30);
       const id = randomUUID();
       const r = await query(
         "INSERT INTO cards(id,user_id,slug,data) VALUES($1,$2,$3,$4) RETURNING *",
@@ -484,6 +572,7 @@ async function handler(
       const card = await owned("cards", path[1], u);
       if (card.identity_locked)
         throw new Fault(422, "Le logo commandé est verrouillé.");
+      await rate("logo:" + u.id, 30);
       const form = await req.formData();
       const id = await upload(req, u, true, form.get("file"));
       let originalId = id;
@@ -508,6 +597,16 @@ async function handler(
             "UPDATE cards SET logo_id=$1,original_logo_id=$3,updated_at=now() WHERE id=$2",
             [id, card.id, originalId],
           );
+          // L'ancien logo n'est plus utilisé nulle part : il est supprimé pour
+          // ne pas remplir la base à chaque nouvel import.
+          const stale = [locked.logo_id, locked.original_logo_id].filter(
+            (x) => x && x !== id && x !== originalId,
+          );
+          if (stale.length)
+            await c.query(
+              "DELETE FROM files f WHERE f.id = ANY($1::uuid[]) AND NOT EXISTS(SELECT 1 FROM cards WHERE logo_id=f.id OR original_logo_id=f.id) AND NOT EXISTS(SELECT 1 FROM orders WHERE receipt_id=f.id OR snapshot->>'logo_id'=f.id::text)",
+              [stale],
+            );
         });
       } catch (e) {
         await query("DELETE FROM files WHERE id=$1 OR id=$2", [id, originalId]);
@@ -534,6 +633,7 @@ async function handler(
         !process.env.POPCARD_BANK_HOLDER
       )
         throw new Fault(503, "Les commandes ne sont pas encore ouvertes.");
+      await rate("order:" + u.id, 20);
       const v = z
         .object({
           card_id: z.string().uuid(),
@@ -634,6 +734,7 @@ async function handler(
       const o = await owned("orders", path[1], u);
       if (!["awaiting_receipt", "review", "rejected"].includes(o.status))
         throw new Fault(422, "Le paiement a déjà été traité.");
+      await rate("receipt:" + u.id, 10);
       const id = await upload(req, u);
       await transaction(async (c) => {
         const r = await c.query(
@@ -690,7 +791,7 @@ async function handler(
           .parse(await json());
         const r = await query(
           "UPDATE cards SET status=$1 WHERE id=$2 AND status IN ('live','suspended') RETURNING id",
-          [v.status, path[2]],
+          [v.status, uuid(path[2])],
         );
         if (!r.rowCount) throw new Fault(422, "Cette carte n’est pas publiée.");
         return NextResponse.json({ ok: true });
@@ -698,7 +799,7 @@ async function handler(
       if (path[1] === "orders" && path.length === 3 && !post) {
         const r = await query(
           "SELECT o.*,c.slug FROM orders o JOIN cards c ON c.id=o.card_id WHERE o.id=$1 AND o.paid_at IS NOT NULL",
-          [path[2]],
+          [uuid(path[2])],
         );
         if (!r.rows[0]) throw new Fault(404, "Commande payée introuvable.");
         return NextResponse.json(r.rows[0]);
@@ -722,7 +823,7 @@ async function handler(
         const o = await transaction(async (c) => {
           const r = await c.query(
             "SELECT * FROM orders WHERE id=$1 FOR UPDATE",
-            [path[2]],
+            [uuid(path[2])],
           );
           const o = r.rows[0];
           if (!o) throw new Fault(404, "Commande introuvable.");
@@ -770,24 +871,21 @@ async function handler(
     if (e instanceof Fault)
       return NextResponse.json({ error: e.message }, { status: e.status });
     if (e instanceof z.ZodError)
-      return NextResponse.json(
-        {
-          error:
-            "Vérifiez les champs : " +
-            e.issues.map((i) => i.path.join(".")).join(", "),
-        },
-        { status: 422 },
-      );
-    if ((e as any).code === "23505")
+      return NextResponse.json({ error: zodMessage(e) }, { status: 422 });
+    if (
+      (e as any).code === "23505" ||
+      /duplicate key value/.test((e as any)?.message || "")
+    )
       return NextResponse.json(
         { error: "Cet e-mail ou cette commande existe déjà." },
         { status: 409 },
       );
+    // Le détail technique reste dans les journaux du serveur.
     console.error("API PopCard", e instanceof Error ? e.message : "Erreur");
     return NextResponse.json(
       {
         error:
-          "Le service est indisponible. Vérifiez la connexion PostgreSQL et les migrations.",
+          "Le service est momentanément indisponible. Réessayez dans un instant.",
       },
       { status: 503 },
     );

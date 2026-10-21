@@ -35,6 +35,29 @@ class Browser {
 const a = new Browser(),
   b = new Browser(),
   admin = new Browser();
+// Lien reçu par e-mail : journal admin en mode log, message SMTP réellement
+// reçu en mode smtp (le journal masque alors les liens après envoi).
+const tokenFor = async (recipient, kind) => {
+  if (process.env.TEST_SMTP === "true") {
+    const raw = await readFile("tests/.smtp-outbox.txt", "utf8");
+    const found = raw
+      .split(/\r?\n=====\r?\n/)
+      .map((m) =>
+        m
+          .replace(/=\r?\n/g, "")
+          .replace(/=([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))),
+      )
+      .filter((m) => m.toLowerCase().includes("to: " + recipient))
+      .map((m) => m.match(new RegExp("/" + kind + "\\?token=([a-f0-9]{64})"))?.[1])
+      .filter(Boolean);
+    const logged = await admin.call("admin/mail");
+    assert.ok(logged.every((m) => !/token=[a-f0-9]{64}/.test(m.body)), "Lien non masqué dans le journal");
+    return found.at(-1);
+  }
+  return (await admin.call("admin/mail"))
+    .find((m) => m.recipient === recipient && m.body.includes("/" + kind + "?token="))
+    .body.split("token=")[1];
+};
 const data = {
   tpl: "B",
   primary: "#123456",
@@ -121,10 +144,7 @@ try {
     terms: true,
   };
   await a.call("orders", order, 403);
-  const mails = await admin.call("admin/mail");
-  const verification = mails
-    .find((m) => m.recipient === "client@example.com" && m.subject.includes("Vérifiez"))
-    .body.split("token=")[1];
+  const verification = await tokenFor("client@example.com", "verification");
   await a.call("auth/verify", { token: verification });
   await a.call("auth/verify", { token: verification }, 422);
   if(process.env.TEST_SMTP==="true"){const mail=await db.query("SELECT status FROM mail_outbox");assert.ok(mail.rows.length>=4);assert.ok(mail.rows.every(m=>m.status==="sent"));}
@@ -183,9 +203,7 @@ try {
   await a.call("public/" + c.slug, undefined, 404);
   await admin.call("admin/cards/" + c.id, { status: "live" });
   await a.call("auth/forgot", { email: "client@example.com" });
-  const reset = (await admin.call("admin/mail"))
-    .find((m) => m.subject.includes("Réinitialiser"))
-    .body.split("token=")[1];
+  const reset = await tokenFor("client@example.com", "reinitialisation");
   await a.call("auth/reset", {
     token: reset,
     password: "NewPassword123",
@@ -210,7 +228,7 @@ try {
   await a.call('profile',{...profile,current_password:'wrong'},422);
   await a.call('profile',profile);
   assert.equal((await a.call('me')).verified_at,null);
-  const changedLink=(await admin.call('admin/mail')).find(m=>m.recipient==='changed@example.com' && m.subject.includes('Vérifiez')).body.split('token=')[1];
+  const changedLink=await tokenFor('changed@example.com','verification');
   await a.call('auth/verify',{token:changedLink});
   assert.ok((await a.call('me')).verified_at);
   const csrf = await fetch(base + "/api/cards", {

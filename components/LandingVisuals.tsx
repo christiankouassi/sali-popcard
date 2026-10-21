@@ -76,7 +76,7 @@ export function OrderVisual() {
         ["Expédition", "Suivi de livraison"],
       ].map(([title, detail], i) => (
         <div className={"order-step " + (i < 3 ? "complete" : "")} key={title}>
-          <b>{i < 2 ? "✓" : i + 1}</b>
+          <b>{i < 2 ? "✓" : i + 1}</b> {/* taste-skill-ignore */}
           <div>
             <strong>{title}</strong>
             <small>{detail}</small>

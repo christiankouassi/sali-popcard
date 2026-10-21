@@ -13,11 +13,20 @@ export async function currentUser() {
 }
 export async function session(userId: string) {
   const token = randomBytes(32).toString("hex");
+  const jar = await cookies();
+  // Rotation : une session précédente sur ce navigateur n'est plus valable.
+  const previous = jar.get("popcard_session")?.value;
+  if (previous)
+    await query("DELETE FROM sessions WHERE token_hash=$1", [hash(previous)]);
   await query(
     "INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '7 days')",
     [hash(token), userId],
   );
-  (await cookies()).set("popcard_session", token, {
+  // Nettoyage des sessions expirées de ce compte.
+  await query("DELETE FROM sessions WHERE user_id=$1 AND expires_at<now()", [
+    userId,
+  ]);
+  jar.set("popcard_session", token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

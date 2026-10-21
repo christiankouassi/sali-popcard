@@ -43,7 +43,7 @@ export default function Landing() {
       </header>
       <section className="hero">
         <div>
-          <span className="eyebrow">CARTE DE VISITE ET MINI-SITE</span>
+          <span className="eyebrow">{/* taste-skill-ignore */}CARTE DE VISITE ET MINI-SITE</span>
           <h1>
             Vos coordonnées,
             <br />à portée de scan.

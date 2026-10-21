@@ -2,7 +2,7 @@
 import React from "react";
 import QRCode from "qrcode";
 import { safeUrl } from "@/lib/business.mjs";
-import { contrast, onColor } from "@/lib/colors.mjs";
+import { contrast, onColor, accessibleColor } from "@/lib/colors.mjs";
 import "./reference.css";
 export const defaults = {
   tpl: "B",
@@ -286,7 +286,10 @@ export function CardPreview({
               <div className="nm" style={{ fontFamily: d.fontTitle }}>
                 {[d.firstName, d.lastName].join(" ").trim() || "Votre nom"}
               </div>
-              <div className="tt" style={{ color: A, fontFamily: d.fontTitle }}>
+              <div
+                className="tt"
+                style={{ color: accessibleColor(A, P, 4.5), fontFamily: d.fontTitle }}
+              >
                 {d.title}
               </div>
               <div className="lines">
@@ -320,12 +323,11 @@ export function CardPreview({
             <Logo d={d} logo={logo} />
           </div>
           <div className="nm" style={{ fontFamily: d.fontTitle }}>
-            {d.firstName || "Votre"}
-            <br />
-            {d.lastName || "nom"}
+            <span>{d.firstName || "Votre"}</span>
+            <span>{d.lastName || "nom"}</span>
           </div>
           <div className="rule" style={{ background: A }} />
-          <div className="tt" style={{ color: A }}>
+          <div className="tt" style={{ color: accessibleColor(A, bg, 4.5) }}>
             <span>{d.title}</span>
             {d.company && <span className="company-line">{d.company}</span>}
           </div>
@@ -446,6 +448,7 @@ export function MiniSite({
         {
           "--p": d.primary,
           "--a": d.accent,
+          "--a-text": accessibleColor(d.accent, d.background || "#FFFFFF", 4.5),
           "--ft": `"${d.fontTitle}",serif`,
           "--fb": `"${d.fontBody}",sans-serif`,
           "--bleu": "#1C2C46",
@@ -514,8 +517,8 @@ export function MiniSite({
           <section className="ms-sec">
             <h4>{en ? "Email" : "E-mails"}</h4>
             {emails.length
-              ? emails.map((e: string) => (
-                  <a key={e} className="ms-line" href={"mailto:" + e}>
+              ? emails.map((e: string, i: number) => (
+                  <a key={i} className="ms-line" href={"mailto:" + e}>
                     {e}
                   </a>
                 ))
