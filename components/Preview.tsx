@@ -71,6 +71,13 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M9 8.5c0 3 2.5 6 6 6.5l1-1.5-2-1-1 .8a4 4 0 0 1-2.3-2.3l.8-1-1-2z" />
     </>
   ),
+  nfc: (
+    <>
+      <path d="M6 8a8 8 0 0 1 12 0" />
+      <path d="M8.5 11.5a4.5 4.5 0 0 1 7 0" />
+      <path d="M11 15a1 1 0 0 1 2 0" />
+    </>
+  ),
 };
 export function Icon({ kind }: { kind: string }) {
   return (
@@ -106,7 +113,7 @@ export function StyledQR({
     n = qr.modules.size,
     m = 4,
     c = n / 2,
-    hole = n * 0.075;
+    hole = n * 0.17; // Agrandissement du médaillon central pour visibilité optimale du logo
   const dark = contrast(primary, "#fff") >= 4.5 ? primary : "#1C2C46";
   const a = contrast(accent, "#fff") >= 4.5 ? accent : dark;
   const dots = [];
@@ -256,7 +263,7 @@ export function CardPreview({
     ["phone", d.phones[0]?.[1]],
     ["pin", d.city],
     ["mail", d.emails[0]],
-    ["globe", d.website],
+    ["globe", d.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "")],
   ].filter((x) => x[1]);
   return (
     <div
@@ -278,36 +285,48 @@ export function CardPreview({
         )
       ) : d.tpl === "B" ? (
         side === "recto" ? (
-          <div className="fill B-recto">
-            <div className="left" style={{ background: bg }}>
-              <Logo d={d} logo={logo} />
+          <div
+            className="fill B-recto executive-recto"
+            style={{ background: P, color: onColor(P) }}
+          >
+            <div className="exec-header">
+              <div className="exec-logo">
+                <Logo d={d} logo={logo} tile={d.logoTile} surface={P} />
+              </div>
+              <div
+                className="exec-nfc"
+                style={{ color: accessibleColor(A, P, 4.5) }}
+                title="Puce sans contact NFC"
+              >
+                <Icon kind="nfc" />
+                <span>NFC</span>
+              </div>
             </div>
-            <div className="right" style={{ background: P, color: onColor(P) }}>
+            <div className="exec-body">
               <div className="nm" style={{ fontFamily: d.fontTitle }}>
                 {[d.firstName, d.lastName].join(" ").trim() || "Votre nom"}
               </div>
-              <div
-                className="tt"
-                style={{ color: accessibleColor(A, P, 4.5), fontFamily: d.fontTitle }}
-              >
-                {d.title}
-              </div>
-              <div className="lines">
-                {lines.map(([k, v]) => (
-                  <div key={k}>{v}</div>
-                ))}
-              </div>
+              {d.title && (
+                <div
+                  className="tt"
+                  style={{ color: accessibleColor(A, P, 4.5), fontFamily: d.fontTitle }}
+                >
+                  {d.title}
+                </div>
+              )}
+              {d.company && <div className="co">{d.company}</div>}
             </div>
-            {lines.length > 0 && (
-              <div
-                className="cpill"
-                style={{ background: A, color: onColor(A) }}
-              >
-                {lines.map(([k]) => (
-                  <Icon key={k} kind={k} />
-                ))}
-              </div>
-            )}
+            <div className="exec-rule" style={{ background: A }} />
+            <div className="exec-footer">
+              {lines.slice(0, 2).map(([k, v]) => (
+                <div key={k} className="exec-line">
+                  <span className="exec-ico" style={{ color: accessibleColor(A, P, 4.5) }}>
+                    <Icon kind={k} />
+                  </span>
+                  <span className="exec-val">{v}</span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="fill B-verso" style={{ background: "#fff" }}>

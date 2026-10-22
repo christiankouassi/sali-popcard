@@ -18,8 +18,6 @@ export default function LogoStudio({
     [original, setOriginal] = useState(""),
     [groups, setGroups] = useState<any[]>([]),
     [error, setError] = useState(""),
-    [transparent, setTransparent] = useState(false),
-    [tolerance, setTolerance] = useState(28),
     [pdf, setPdf] = useState<any>(null),
     [page, setPage] = useState(1),
     [processing, setProcessing] = useState(false),
@@ -91,7 +89,6 @@ export default function LogoStudio({
       ),
     );
     setOriginal(canvas.toDataURL());
-    setTransparent(false);
     const c = canvas.getContext("2d")!;
     setGroups(
       palettes(
@@ -214,31 +211,6 @@ export default function LogoStudio({
       setProcessing(false);
     }
   }
-  async function background(enabled: boolean, t: number) {
-    if (!source) return;
-    setTransparent(enabled);
-    setProcessing(true);
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = source.width;
-      canvas.height = source.height;
-      const ctx = canvas.getContext("2d")!,
-        data = source
-          .getContext("2d")!
-          .getImageData(0, 0, source.width, source.height);
-      if (enabled)
-        data.data.set(
-          removeConnectedBackground(data.data, source.width, source.height, t),
-        );
-      ctx.putImageData(data, 0, 0);
-      await emit(canvas);
-      setTransparent(enabled);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setProcessing(false);
-    }
-  }
   return (
     <div className="logo-studio">
       <label className="field">
@@ -293,38 +265,9 @@ export default function LogoStudio({
             </figure>
             <figure>
               <img src={preview} alt="Logo utilisé" />
-              <figcaption>Résultat</figcaption>
+              <figcaption>Logo importé</figcaption>
             </figure>
           </div>
-          <label className="check">
-            <input
-              disabled={disabled || processing}
-              type="checkbox"
-              checked={transparent}
-              onChange={(e) => background(e.target.checked, tolerance)}
-            />
-            Rendre le fond uni transparent
-          </label>
-          <label className="field">
-            Tolérance : {tolerance}
-            <input
-              disabled={disabled || processing}
-              type="range"
-              min="5"
-              max="90"
-              value={tolerance}
-              onChange={(e) => {
-                setProcessing(true);
-                const n = Number(e.target.value);
-                setTolerance(n);
-                if (transparent) background(true, n);
-              }}
-            />
-          </label>
-          <small>
-            Vérifiez les contours. Décochez pour retrouver l’original. Les zones
-            blanches fermées sont conservées.
-          </small>
         </>
       )}
       {advice && (

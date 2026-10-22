@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Landing from "./Landing";
@@ -73,11 +73,14 @@ export default function App({ path }: { path: string }) {
       .then(setUser)
       .catch(() => setUser(null));
   useEffect(() => {
+    setMenu(false);
+  }, [path]);
+  useEffect(() => {
     refresh();
     api("config")
       .then(setConfig)
       .catch((e) => setError(e.message));
-  }, [path]);
+  }, []);
   if (path.startsWith("/production/"))
     return <Production id={path.split("/")[2]} />;
   if (path.startsWith("/p/")) return <Public slug={path.split("/")[2]} />;
@@ -649,19 +652,30 @@ function Editor({ id }: any) {
     [step, setStep] = useState(0),
     [side, setSide] = useState("recto"),
     [error, setError] = useState(""),
+    [saveStatus, setSaveStatus] = useState(""),
     [busy, setBusy] = useState(false),
     [file, setFile] = useState<File | null>(null),
     [originalFile, setOriginalFile] = useState<File | null>(null),
     [localLogo, setLocalLogo] = useState<string>(),
     [confirmed, setConfirmed] = useState(false);
+  const autoSaveTimer = useRef<any>(null);
   useEffect(() => {
-    if (id)
+    if (id) {
       api("cards/" + id)
         .then((c) => {
           setCard(c);
           setD({ ...defaults, ...c.data });
         })
         .catch((e) => setError(e.message));
+    } else {
+      api("cards", defaults)
+        .then((c) => {
+          setCard(c);
+          setSaveStatus("Brouillon initialisé");
+          window.history.replaceState(null, "", "/app/cards/" + c.id);
+        })
+        .catch(() => {});
+    }
   }, [id]);
   useEffect(
     () => () => {
@@ -669,6 +683,22 @@ function Editor({ id }: any) {
     },
     [localLogo],
   );
+  useEffect(() => {
+    if (!card?.id) return;
+    setSaveStatus("Enregistrement…");
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        await api("cards/" + card.id, d);
+        setSaveStatus("Brouillon sauvegardé");
+      } catch {
+        setSaveStatus("");
+      }
+    }, 800);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+  }, [d, card?.id]);
   const locked =
     card &&
     (card.identity_locked || ["live", "suspended"].includes(card.status));
@@ -721,7 +751,8 @@ function Editor({ id }: any) {
         eyebrow="LE GÉNÉRATEUR POPCARD"
         title={locked ? "Actualisez votre mini-site." : "Créons votre PopCard."}
       >
-        Personnalisez à votre rythme. Votre aperçu suit chaque modification.
+        Personnalisez à votre rythme. Votre travail s’enregistre automatiquement.
+        {saveStatus && <span className="save-status-pill">{saveStatus}</span>}
       </Heading>
       <div className="wizardbar">
         {["Modèle", "Identité visuelle", "Informations", "Aperçu"].map(
@@ -750,7 +781,7 @@ function Editor({ id }: any) {
               <div className="templatechoices">
                 {[
                   ["A", "Logo", "Votre marque au premier plan"],
-                  ["B", "Carte de visite", "Nom, fonction et coordonnées"],
+                  ["B", "Exécutif Sombre", "Finition prestige pour dirigeants et cadres"],
                   ["C", "Épuré", "Une composition minimaliste"],
                 ].map(([v, t, s]) => (
                   <button
@@ -780,10 +811,27 @@ function Editor({ id }: any) {
                     ? "/api/files/" + card.original_logo_id
                     : undefined
                 }
-                onLogo={(f: File, url: string, original: File) => {
+                onLogo={async (f: File, url: string, original: File) => {
                   setOriginalFile(original);
                   setFile(f);
                   setLocalLogo(url);
+                  if (card?.id) {
+                    try {
+                      setSaveStatus("Envoi du logo…");
+                      const formData = new FormData();
+                      formData.set("file", f);
+                      if (original) formData.set("original", original);
+                      const r = await api("cards/" + card.id + "/logo", formData);
+                      setCard((prev: any) => ({
+                        ...prev,
+                        logo_id: r.logo_id,
+                        original_logo_id: r.original_logo_id,
+                      }));
+                      setSaveStatus("Logo et brouillon sauvegardés");
+                    } catch (err: any) {
+                      setError(err.message);
+                    }
+                  }
                 }}
                 onPalette={(g: any) =>
                   setD({

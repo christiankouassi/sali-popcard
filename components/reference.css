@@ -92,78 +92,119 @@
   bottom: 0;
   height: 18%;
 }
-.ref-card .B-recto .left {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 44%;
-  display: grid;
-  place-items: center;
-  padding: 6cqw;
-}
-.ref-card .B-recto .right {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 56%;
-  padding: 4.8cqw 4cqw 3.6cqw 7.5cqw;
-  color: #fff;
+.ref-card .executive-recto {
   display: flex;
   flex-direction: column;
+  padding: 5cqw 6.5cqw 4.5cqw;
+  position: relative;
+  overflow: hidden;
 }
-.ref-card .B-recto .nm {
+.ref-card .executive-recto::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.08) 0%, transparent 60%); /* taste-skill-ignore */
+  pointer-events: none;
+}
+.ref-card .executive-recto .exec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 10cqw;
+  margin-bottom: 2cqw;
+}
+.ref-card .executive-recto .exec-logo {
+  max-width: 34cqw;
+  height: 10cqw;
+  display: flex;
+  align-items: center;
+}
+.ref-card .executive-recto .exec-logo img,
+.ref-card .executive-recto .exec-logo svg {
+  max-height: 10cqw;
+  max-width: 100%;
+  object-fit: contain;
+}
+.ref-card .executive-recto .exec-nfc {
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  font-size: 2.2cqw;
   font-weight: 700;
-  font-size: clamp(3.2cqw, 4.4cqw, 5.2cqw);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.12;
+  letter-spacing: 0.15em;
+  opacity: 0.85;
+}
+.ref-card .executive-recto .exec-nfc svg {
+  width: 3.4cqw;
+  height: 3.4cqw;
+}
+.ref-card .executive-recto .exec-body {
+  margin-top: auto;
+  margin-bottom: 2cqw;
+}
+.ref-card .executive-recto .nm {
+  font-weight: 700;
+  font-size: clamp(3.4cqw, 4.8cqw, 6.2cqw);
+  letter-spacing: 0.04em;
+  line-height: 1.1;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.ref-card .B-recto .tt {
-  font-weight: 700;
-  font-size: clamp(2.4cqw, 3cqw, 3.8cqw);
-  line-height: 1.15;
-  margin-top: 0.6cqw;
+.ref-card .executive-recto .tt {
+  font-weight: 600;
+  font-size: clamp(2.3cqw, 2.9cqw, 3.6cqw);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 0.8cqw;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
 }
-.ref-card .B-recto .lines {
+.ref-card .executive-recto .co {
+  font-size: clamp(2cqw, 2.4cqw, 2.8cqw);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-top: 0.5cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-card .executive-recto .exec-rule {
+  width: 100%;
+  height: 0.4cqw;
+  opacity: 0.6;
+  margin-bottom: 2cqw;
+}
+.ref-card .executive-recto .exec-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2cqw;
+  font-size: 2.2cqw;
   margin-top: auto;
-  display: grid;
-  gap: 1.2cqw;
-  font-size: 2.6cqw;
-  letter-spacing: 0.02em;
-  padding-bottom: 0.4cqw;
 }
-.ref-card .B-recto .lines div {
+.ref-card .executive-recto .exec-line {
+  display: flex;
+  align-items: center;
+  gap: 1.2cqw;
+  min-width: 0;
+  max-width: 48%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  height: 3.2cqw;
-  line-height: 3.2cqw;
 }
-.ref-card .B-recto .cpill {
-  position: absolute;
-  left: calc(44% - 3.2cqw);
-  bottom: 3.8cqw;
-  width: 6.4cqw;
-  border-radius: 3.2cqw;
-  display: grid;
-  gap: 1.2cqw;
-  padding: 0.8cqw 0;
-  justify-items: center;
-  border: 0.6cqw solid #fff;
-}
-.ref-card .B-recto .cpill svg {
-  width: 3cqw;
-  height: 3.2cqw;
+.ref-card .executive-recto .exec-ico svg {
+  width: 2.6cqw;
+  height: 2.6cqw;
   display: block;
+  flex-shrink: 0;
+}
+.ref-card .executive-recto .exec-val {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ref-card .B-verso .frame {
   position: absolute;
