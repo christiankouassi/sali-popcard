@@ -1,219 +1,281 @@
 "use client";
 import Link from "next/link";
-import { Icon, CardPreview, defaults } from "./Preview";
-import { HeroCard3D, BentoGrid, StickyProcess } from "./LandingInteractive";
+import { useState } from "react";
+import { defaults, Icon } from "./Preview";
+import {
+  HeroCard3D,
+  StickyProcess,
+  ModelExplorer,
+  LandingMotion,
+} from "./LandingInteractive";
 
 const sample = {
   ...defaults,
+  designVersion: 2,
   tpl: "B",
-  example: true,
+  primary: "#173E35",
+  accent: "#44B68A",
+  background: "#FCFBF6",
+  firstName: "Nadia",
+  lastName: "Bennani",
+  title: "Direction commerciale",
+  company: "SALI DigiCom",
+  phones: [["Mobile", "+212 600 000 000"]],
+  emails: ["contact@exemple.ma"],
   city: "Casablanca",
-  website: "https://entreprise.example.com",
-  whatsapp: "+212 600 123 456",
-  address: "Boulevard d'Anfa · Casablanca, Maroc",
-  linkedin: "https://linkedin.com/company/sali-digicom",
-  instagram: "https://instagram.com/sali.digicom",
-  facebook: "https://facebook.com/salidigicom",
-  firstName: "Karim",
-  lastName: "El Amrani",
-  title: "Directeur du Développement",
-  company: "SALI DigiCom SARL",
-  phones: [["Mobile", "+212 600 123 456"]],
-  emails: ["contact@sali-digicom.com"],
-  desc: "Solutions d'identité numérique et cartes professionnelles connectées de prestige.",
+  website: "https://exemple.ma",
+  whatsapp: "+212600000000",
+  address: "Casablanca, Maroc",
+  desc: "Retrouvez mes coordonnées et les liens utiles pour découvrir mon activité.",
 };
-
+const faqs = [
+  [
+    "Faut-il installer une application ?",
+    "Non. Le QR code ouvre votre mini-site dans le navigateur du téléphone. Votre interlocuteur peut ensuite vous appeler, vous écrire ou enregistrer votre fiche contact.",
+  ],
+  [
+    "Que puis-je modifier après réception ?",
+    "Vos coordonnées et vos liens restent modifiables dans votre espace. Le design physique, le logo et les couleurs utilisés pour la fabrication sont verrouillés après la première commande.",
+  ],
+  [
+    "Quand mon mini-site devient-il public ?",
+    "Votre brouillon et ses aperçus restent privés. Le mini-site est activé à la fin de la production, lors de l’expédition de votre carte.",
+  ],
+  [
+    "Puis-je créer des cartes pour mon équipe ?",
+    "Oui. Vous pouvez créer plusieurs PopCards depuis votre espace et commander plusieurs exemplaires d’une même carte. Les tarifs selon la quantité sont affichés avant validation.",
+  ],
+];
 export default function Landing() {
+  const [menu, setMenu] = useState(false);
   return (
-    <div className="landing">
-      {/* Barre de navigation haute */}
-      <header className="landing-nav">
-        <Link className="landing-brand" href="/">
-          <img src="/assets/logo-color.svg" alt="SALI DigiCom" />
-          <b>PopCard<span className="brand-dot">.</span></b>
+    <div className="landing landing-v3">
+      <LandingMotion />
+      <header className="lp-nav">
+        <Link
+          href="/"
+          className="lp-brand"
+          aria-label="SALI DigiCom PopCard, accueil"
+        >
+          <img
+            src="/assets/logo-color.svg"
+            alt="SALI DigiCom"
+            width="38"
+            height="38"
+          />
+          <span>
+            PopCard<span className="lp-brand-point">.</span>
+          </span>
         </Link>
-        <nav>
-          <a href="#avantages">Atouts</a>
-          <a href="#parcours">Parcours</a>
-          <a href="#modeles">Modèles</a>
-          <a href="#offre">Tarifs</a>
-          <Link href="/connexion">Se connecter</Link>
-          <Link className="button primary has-glow" href="/inscription">
-            Créer ma PopCard ↗
+        <button
+          className="lp-menu-toggle"
+          type="button"
+          aria-expanded={menu}
+          aria-controls="landing-links"
+          onClick={() => setMenu(!menu)}
+        >
+          {menu ? "Fermer" : "Menu"}{" "}
+          <span aria-hidden="true">{menu ? "×" : "☰"}</span>
+        </button>
+        <nav
+          id="landing-links"
+          className={menu ? "open" : ""}
+          aria-label="Navigation du site"
+          onClick={() => setMenu(false)}
+        >
+          <a href="#fonctionnement">Comment ça marche</a>
+          <a href="#modeles">Les modèles</a>
+          <a href="#offre">L’offre</a>
+          <Link href="/connexion" className="lp-login">
+            Mon espace <span>↗</span>
+          </Link>
+          <Link
+            href="/inscription"
+            className="lp-button lp-button-dark lp-energy"
+          >
+            Créer ma PopCard <Icon kind="arrow" />
           </Link>
         </nav>
       </header>
-
-      {/* Hero Section avec carte 3D interactive */}
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow">{/* taste-skill-ignore */}CARTE CONNECTÉE NFC & QR CODE</span>
-          <h1>
-            Votre réseau.<br />À portée de main.
-          </h1>
-          <p>
-            Une carte de visite sans contact d’exception. Un simple tap sur smartphone transmet
-            instantanément vos coordonnées, vos liens et votre univers professionnel sans aucune
-            application.
-          </p>
-          <div className="hero-cta-group">
-            <Link className="button primary has-glow" href="/inscription">
-              Personnaliser ma carte ↗
+      <main>
+        <section className="lp-hero">
+          <div className="lp-hero-copy">
+            <span className="lp-eyebrow">
+              <span className="lp-status-dot" /> LA CARTE DE VISITE QUI CRÉE DU
+              LIEN
+            </span>
+            <h1>
+              <span>Votre carte.</span>
+              <span>Votre univers.</span>
+              <em>En un scan.</em>
+            </h1>
+            <p>
+              Une carte PVC personnalisée, reliée à votre mini-site. Vos
+              coordonnées, vos liens et votre activité, réunis au même endroit.
+            </p>
+            <div className="lp-hero-actions">
+              <Link
+                href="/inscription"
+                className="lp-button lp-button-mint lp-energy"
+              >
+                Créer ma PopCard <Icon kind="arrow" />
+              </Link>
+              <a href="#fonctionnement" className="lp-hero-demo">
+                <span>▷</span> Voir comment ça marche
+              </a>
+            </div>
+            <div className="lp-hero-proof">
+              <span>
+                <Icon kind="check" /> Sans application
+              </span>
+              <span>
+                <Icon kind="check" /> Coordonnées modifiables
+              </span>
+            </div>
+          </div>
+          <HeroCard3D data={sample} />
+          <a className="lp-scroll-cue" href="#fonctionnement">
+            DÉCOUVRIR <span>↓</span>
+          </a>
+        </section>
+        <div className="lp-intro-strip">
+          <span>LA CARTE EN MAIN.</span>
+          <span>VOTRE ACTIVITÉ À PORTÉE DE SCAN.</span>
+          <span>LE CONTACT, SIMPLEMENT.</span>
+        </div>
+        <section className="lp-section lp-reveal" id="fonctionnement">
+          <div className="lp-section-heading">
+            <div>
+              <span className="lp-eyebrow">01 / LA RENCONTRE, ET APRÈS ?</span>
+              <h2>
+                Du premier échange
+                <br />
+                au prochain contact.
+              </h2>
+            </div>
+            <p>Un geste simple pour partager davantage qu’un numéro.</p>
+          </div>
+          <StickyProcess sample={sample} />
+        </section>
+        <section
+          className="lp-section lp-models-section lp-reveal"
+          id="modeles"
+        >
+          <div className="lp-section-heading">
+            <div>
+              <span className="lp-eyebrow">
+                02 / UNE CARTE QUI VOUS RESSEMBLE
+              </span>
+              <h2>
+                À chaque identité,
+                <br />
+                <em>sa signature.</em>
+              </h2>
+            </div>
+            <p>
+              Explorez les modèles et leurs deux faces.
+              <br />
+              Le vôtre commence avec votre logo.
+            </p>
+          </div>
+          <ModelExplorer sample={sample} />
+        </section>
+        <section className="lp-offer lp-reveal" id="offre">
+          <div className="lp-offer-copy">
+            <span className="lp-eyebrow">
+              03 / PRÊT POUR VOTRE PROCHAINE RENCONTRE
+            </span>
+            <h2>
+              Votre première
+              <br />
+              PopCard vous attend.
+            </h2>
+            <p>
+              Personnalisez votre carte, vérifiez votre aperçu, puis passez
+              commande. Retrouvez chaque étape dans votre espace.
+            </p>
+            <span className="lp-offer-small">
+              <Icon kind="cards" /> Carte physique + mini-site professionnel
+            </span>
+          </div>
+          <div className="lp-price-card">
+            <span>PREMIÈRE CARTE & CRÉATION DU MINI-SITE</span>
+            <div className="lp-price">
+              400 <small>DH</small>
+            </div>
+            <p>
+              Puis des exemplaires supplémentaires à partir de 200 DH selon la
+              quantité.
+            </p>
+            <ul>
+              <li>
+                <Icon kind="check" /> Carte PVC personnalisée avec QR code
+              </li>
+              <li>
+                <Icon kind="check" /> Mini-site de contact inclus
+              </li>
+              <li>
+                <Icon kind="check" /> Accès à votre espace de gestion
+              </li>
+            </ul>
+            <Link
+              href="/inscription"
+              className="lp-button lp-button-dark lp-energy"
+            >
+              Je crée ma PopCard <Icon kind="arrow" />
             </Link>
-            <a className="button ghost" href="#modeles">
-              Voir les modèles ↓
+            <small>Frais de livraison affichés avant validation.</small>
+          </div>
+        </section>
+        <section className="lp-section lp-faq lp-reveal" id="questions">
+          <div>
+            <span className="lp-eyebrow">LES DERNIÈRES QUESTIONS</span>
+            <h2>
+              Tout est clair ?<br />
+              <em>À vous de jouer.</em>
+            </h2>
+            <a href="mailto:contact@sali-digicom.com" className="lp-text-link">
+              Parlons de votre projet <Icon kind="arrow" />
             </a>
           </div>
-          <div className="hero-badges">
-            <span>iPhone et Android</span>
-            <span>Sans application</span>
-            <span>Modifiable à distance</span>
+          <div className="lp-faq-list">
+            {faqs.map(([question, answer]) => (
+              <details key={question}>
+                <summary>
+                  {question}
+                  <span aria-hidden="true">+</span>
+                </summary>
+                <p>{answer}</p>
+              </details>
+            ))}
           </div>
-        </div>
-
-        <div className="hero-art-interactive">
-          <HeroCard3D data={sample} />
-        </div>
-      </section>
-
-      {/* Section Bento Grid : 4 technologies majeures */}
-      <section id="avantages" className="landing-section">
-        <div className="section-title-wrap">
-          <span className="eyebrow">{/* taste-skill-ignore */}EXPÉRIENCE NOUVELLE GÉNÉRATION</span>
-          <h2>Conçue pour marquer les esprits.</h2>
-          <p>La puissance du numérique dans un objet tangible de prestige.</p>
-        </div>
-        <BentoGrid />
-      </section>
-
-      {/* Section Sticky Scroll : Les 3 étapes */}
-      <section id="parcours" className="landing-section">
-        <div className="section-title-wrap">
-          <span className="eyebrow">{/* taste-skill-ignore */}PARCOURS CLIENT SIMPLIFIÉ</span>
-          <h2>De votre écran à la poignée de main.</h2>
-          <p>Trois étapes fluides pour donner une nouvelle dimension à votre réseau.</p>
-        </div>
-        <StickyProcess sample={sample} />
-      </section>
-
-      {/* Section Modèles de cartes */}
-      <section id="modeles" className="landing-section">
-        <div className="section-title-wrap">
-          <span className="eyebrow">{/* taste-skill-ignore */}FINITIONS DE PRESTIGE</span>
-          <h2>Trois signatures visuelles au choix.</h2>
-          <p>Chaque modèle sublime votre identité selon votre secteur d’activité.</p>
-        </div>
-        <div className="landing-models">
-          {[
-            {
-              tpl: "A",
-              name: "Logo Pur",
-              desc: "Votre marque au premier plan, percutante et mémorable.",
-              ideal: "Idéal pour marques visuelles & agences",
-            },
-            {
-              tpl: "B",
-              name: "Exécutif Sombre",
-              desc: "Fond profond, typographie statutaire et puce NFC apparente.",
-              ideal: "Idéal pour dirigeants, avocats & consultants",
-            },
-            {
-              tpl: "C",
-              name: "Épuré Studio",
-              desc: "Clarté contemporaine, équilibre architectural sur fond clair mat.",
-              ideal: "Idéal pour architectes, créatifs & santé",
-            },
-          ].map((m) => (
-            <article key={m.tpl} className="model-showcase-card">
-              <div className="model-card-frame">
-                <CardPreview data={{ ...sample, tpl: m.tpl }} watermark={false} side="recto" />
-              </div>
-              <div className="model-info">
-                <span className="model-tag">MODÈLE {m.tpl}</span>
-                <h3>{m.name}</h3>
-                <p>{m.desc}</p>
-                <small>{m.ideal}</small>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* Section Tarifs clairs & transparents */}
-      <section id="offre" className="offer">
-        <div className="offer-copy">
-          <span className="eyebrow">{/* taste-skill-ignore */}TARIFICATION TRANSPARENTE</span>
-          <h2>Un investissement unique, valable à vie.</h2>
-          <p>
-            Votre carte physique et son mini-site hébergé en continu. Mettez à jour vos informations
-            gratuitement, autant de fois que nécessaire.
-          </p>
-        </div>
-        <article className="offer-box">
-          <span className="offer-label">PopCard Première Commande</span>
-          <div className="offer-price">
-            <strong>400</strong>
-            <small>DH</small>
-          </div>
-          <ul className="offer-features">
-            <li>Carte physique NFC et QR code haute durabilité</li>
-            <li>Mini-site personnel hébergé à vie sans abonnement</li>
-            <li>Espace membre pour modifier vos coordonnées en direct</li>
-            <li>Réassort ultérieur dès 200 DH selon quantité</li>
-          </ul>
-          <Link className="button primary has-glow" href="/inscription">
-            Commander ma PopCard ↗
-          </Link>
-        </article>
-      </section>
-
-      {/* Section FAQ */}
-      <section className="landing-section faq">
-        <div className="section-title-wrap">
-          <span className="eyebrow">{/* taste-skill-ignore */}QUESTIONS FRÉQUENTES</span>
-          <h2>Tout ce que vous devez savoir.</h2>
-        </div>
-        <div className="faq-grid">
-          {[
-            [
-              "Faut-il une application pour scanner la PopCard ?",
-              "Non, aucune application n’est requise. Un simple contact (NFC) ou le scan du QR code ouvre immédiatement votre mini-site dans le navigateur du smartphone.",
-            ],
-            [
-              "Puis-je modifier mes coordonnées après réception ?",
-              "Oui. Vous accédez à votre espace en ligne à tout moment pour mettre à jour votre numéro, votre e-mail ou vos réseaux. Votre carte physique reste toujours active.",
-            ],
-            [
-              "La PopCard fonctionne-t-elle avec tous les smartphones ?",
-              "Oui. 100% des iPhone récents et des smartphones Android sont équipés du lecteur sans contact NFC natif. Pour les appareils plus anciens, le QR code haute lisibilité garantit une compatibilité totale.",
-            ],
-            [
-              "Comment commander pour toute mon équipe ?",
-              "Depuis votre espace client, vous pouvez créer autant de PopCards que souhaité pour vos collaborateurs, avec une facturation groupée et un suivi centralisé.",
-            ],
-          ].map(([q, r]) => (
-            <details key={q} className="faq-item">
-              <summary>
-                <span>{q}</span>
-                <span className="faq-icon">+</span>
-              </summary>
-              <p>{r}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      {/* Pied de page */}
-      <footer className="landing-foot">
-        <div className="foot-brand">
-          <img src="/assets/logo-white-crop.svg" alt="SALI DigiCom" />
-          <p>SALI PopCard · La carte de visite connectée de prestige.</p>
-        </div>
-        <div className="foot-links">
-          <Link href="/conditions">Conditions générales & Confidentialité</Link>
-          <a href="mailto:contact@sali-digicom.com">contact@sali-digicom.com</a>
-        </div>
-        <small>© {new Date().getFullYear()} SALI DigiCom. Tous droits réservés.</small>
+        </section>
+      </main>
+      <footer className="lp-footer">
+        <Link href="/" className="lp-brand">
+          <img
+            src="/assets/logo-white-crop.svg"
+            alt="SALI DigiCom"
+            width="42"
+            height="42"
+          />
+          <span>
+            PopCard<span className="lp-brand-point">.</span>
+          </span>
+        </Link>
+        <span>La rencontre commence avec vous.</span>
+        <nav aria-label="Liens utiles">
+          <Link href="/conditions">Conditions & confidentialité</Link>
+          <a href="mailto:contact@sali-digicom.com">Nous contacter</a>
+          <a
+            href="https://www.sali-digicom.com"
+            target="_blank"
+            rel="noreferrer"
+          >
+            SALI DigiCom ↗
+          </a>
+        </nav>
+        <small>© {new Date().getFullYear()} SALI DigiCom</small>
       </footer>
     </div>
   );

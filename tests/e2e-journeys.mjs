@@ -1,7 +1,7 @@
 // Parcours utilisateurs complets dans un vrai navigateur (Chromium), du visiteur
 // à l'administrateur, y compris les erreurs de saisie et les tentatives d'abus.
 // Base PGlite isolée, MAIL_MODE=log : aucun e-mail réel n'est envoyé.
-import { chromium } from "@playwright/test";
+import { launchBrowser } from "./browser.mjs";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -60,7 +60,7 @@ try {
     return r.rows[0].body.match(/https?:\/\/\S+/)[0].replace(base, "");
   };
 
-  browser = await chromium.launch({ headless: true });
+  browser = await launchBrowser();
   const problems = [];
   const watch = (page, who) => {
     pages[who] = page;

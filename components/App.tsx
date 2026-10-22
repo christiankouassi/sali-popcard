@@ -1,40 +1,15 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import useCardDraft from "./useCardDraft";
+import { flushActiveDraft, recoverableDrafts } from "@/lib/draft-storage";
+import { api } from "@/lib/client-api";
+export { api } from "@/lib/client-api";
 import Link from "next/link";
 import Landing from "./Landing";
 import LogoStudio from "./LogoStudio";
-import { CardPreview, MiniSite, defaults } from "./Preview";
+import { CardPreview, MiniSite, Icon, defaults } from "./Preview";
 import { labels, price, transitions } from "@/lib/business.mjs";
-export async function api(path: string, data?: any) {
-  const res = await fetch("/api/" + path, {
-    method: data === undefined ? "GET" : "POST",
-    headers:
-      data instanceof FormData
-        ? {}
-        : data === undefined
-          ? {}
-          : { "Content-Type": "application/json" },
-    body:
-      data === undefined
-        ? undefined
-        : data instanceof FormData
-          ? data
-          : JSON.stringify(data),
-    cache: "no-store",
-  });
-  // Une passerelle (hébergeur, coupure réseau) peut renvoyer du HTML : le
-  // message affiché reste compréhensible au lieu d'une erreur de parsing.
-  const value = await res.json().catch(() => ({}));
-  if (!res.ok)
-    throw Error(
-      value.error ||
-        (res.status === 413
-          ? "Fichier trop volumineux."
-          : "Connexion impossible. Vérifiez votre réseau et réessayez."),
-    );
-  return value;
-}
 const money = (v: number) =>
   new Intl.NumberFormat("fr-MA", {
     style: "currency",
@@ -62,12 +37,38 @@ function Message({ text }: { text: string }) {
     </p>
   ) : null;
 }
-export default function App({ path }: { path: string }) {
+export default function App() {
+  const path = usePathname() || "/";
   const router = useRouter();
   const [user, setUser] = useState<any>(undefined);
   const [config, setConfig] = useState<any>(null);
   const [error, setError] = useState("");
   const [menu, setMenu] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const mq = matchMedia("(max-width: 800px)");
+    const update = () => setMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    if (!menu || !mobile) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenu(false);
+        menuButton.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", escape);
+    };
+  }, [menu, mobile]);
   const refresh = () =>
     api("me")
       .then(setUser)
@@ -97,9 +98,11 @@ export default function App({ path }: { path: string }) {
   )
     return (
       <Auth
+        key={path}
         path={path}
-        onDone={() => {
-          window.location.href = "/app";
+        onDone={async () => {
+          await refresh();
+          router.replace("/app");
         }}
       />
     );
@@ -141,49 +144,113 @@ export default function App({ path }: { path: string }) {
       </div>
     );
   const links = [
-    ["/app", "◫", "Vue d’ensemble"],
-    ["/app/cards", "▤", "Mes PopCards"],
-    ["/app/orders", "◷", "Mes commandes"],
-    ["/app/profile", "◎", "Profil et facturation"],
-    ["/app/account", "⚙", "Mon compte"], // taste-skill-ignore
-    ["/app/help", "?", "Aide"],
+    ["/app", "dashboard", "Vue d’ensemble"],
+    ["/app/cards", "cards", "Mes PopCards"],
+    ["/app/orders", "orders", "Mes commandes"],
+    ["/app/profile", "user", "Profil et facturation"],
+    ["/app/account", "settings", "Mon compte"], // taste-skill-ignore
+    ["/app/help", "help", "Aide"],
   ];
   return (
-    <div className="workspace">
-      <aside className={"sidebar " + (menu ? "open" : "")}>
+    <div
+      className="workspace"
+      onClickCapture={async (e) => {
+        const anchor = (e.target as HTMLElement).closest(
+          "a[href]",
+        ) as HTMLAnchorElement | null;
+        if (
+          !anchor ||
+          e.button !== 0 ||
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey ||
+          anchor.target ||
+          anchor.hasAttribute("download")
+        )
+          return;
+        const next = new URL(anchor.href, location.href);
+        if (
+          next.origin !== location.origin ||
+          next.pathname === location.pathname
+        )
+          return;
+        const pending = flushActiveDraft();
+        if (!pending) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await pending;
+        } catch {
+          setError(
+            "Les dernières saisies restent sur cet appareil. Rouvrez votre brouillon pour les synchroniser.",
+          );
+        }
+        router.push(next.pathname + next.search + next.hash);
+      }}
+    >
+      {menu && mobile && (
+        <button
+          className="menu-scrim"
+          aria-label="Fermer le menu"
+          onClick={() => setMenu(false)}
+        />
+      )}
+      <aside
+        id="workspace-navigation"
+        aria-label="Navigation principale"
+        inert={mobile && !menu}
+        className={"sidebar " + (menu ? "open" : "")}
+      >
         <Link className="brand" href="/">
           <img src="/assets/logo-white-crop.svg" alt="SALI DigiCom" />
           <span>
             PopCard<span className="brand-dot">.</span>
           </span>
         </Link>
-        <div className="sidebar-caption">MON ESPACE</div>
-        <nav>
-          {links.map(([href, icon, label]) => (
-            <Link
-              onClick={() => setMenu(false)}
-              className={path === href ? "active" : ""}
-              href={href}
-              key={href}
-            >
-              <span aria-hidden="true">{icon}</span>
-              {label}
-            </Link>
-          ))}
-          {user.is_admin && (
-            <Link
-              href="/app/admin"
-              className={path === "/app/admin" ? "active" : ""}
-            >
-              ◇ Administration
-            </Link>
-          )}
-        </nav>
+        <div className="sidebar-scroll">
+          <div className="sidebar-caption">MON ESPACE</div>
+          <nav>
+            {links.map(([href, icon, label]) => (
+              <Link
+                onClick={() => setMenu(false)}
+                aria-current={
+                  path === href ||
+                  (href !== "/app" && path.startsWith(href + "/"))
+                    ? "page"
+                    : undefined
+                }
+                className={
+                  path === href ||
+                  (href !== "/app" && path.startsWith(href + "/"))
+                    ? "active"
+                    : ""
+                }
+                href={href}
+                key={href}
+              >
+                <Icon kind={icon} />
+                {label}
+              </Link>
+            ))}
+            {user.is_admin && (
+              <Link
+                href="/app/admin"
+                className={path === "/app/admin" ? "active" : ""}
+              >
+                <Icon kind="settings" /> Administration
+              </Link>
+            )}
+          </nav>
+        </div>
         <div className="sidebar-bottom">
           <b>{user.name}</b>
           <small>{user.email}</small>
           <button
             onClick={async () => {
+              try {
+                await flushActiveDraft();
+              } catch {}
               await api("auth/logout", {});
               setUser(null);
               router.push("/connexion");
@@ -195,10 +262,25 @@ export default function App({ path }: { path: string }) {
       </aside>
       <main className="main">
         <header className="topbar">
-          <button className="mobile-menu" onClick={() => setMenu(!menu)}>
+          <button
+            ref={menuButton}
+            className="mobile-menu"
+            aria-expanded={menu}
+            aria-controls="workspace-navigation"
+            onClick={() => setMenu(!menu)}
+          >
             ☰ Menu {/* taste-skill-ignore */}
           </button>
-          <span>Votre présence, toujours à portée de main.</span>
+          <span className="topbar-location">
+            Mon espace <span>/</span>{" "}
+            <b>
+              {links.find(
+                ([href]) =>
+                  path === href ||
+                  (href !== "/app" && path.startsWith(href + "/")),
+              )?.[2] || "Administration"}
+            </b>
+          </span>
           <Link className="button primary small" href="/app/cards/new">
             + Créer une PopCard
           </Link>
@@ -231,20 +313,30 @@ export default function App({ path }: { path: string }) {
             </div>
           )}
           {path === "/app" ? (
-            <Dashboard />
+            <Dashboard user={user} />
           ) : path === "/app/cards" ? (
-            <Cards />
+            <Cards userId={user.id} />
           ) : path === "/app/cards/new" ||
             /^\/app\/cards\/[^/]+$/.test(path) ? (
             <Editor
+              userId={user.id}
               id={path.endsWith("/new") ? undefined : path.split("/")[3]}
             />
           ) : path.includes("/checkout") ? (
-            <Checkout id={path.split("/")[3]} user={user} config={config} />
+            <Checkout
+              key={path.split("/")[3]}
+              id={path.split("/")[3]}
+              user={user}
+              config={config}
+            />
           ) : path === "/app/orders" ? (
             <Orders />
           ) : path.startsWith("/app/orders/") ? (
-            <OrderDetail id={path.split("/")[3]} config={config} />
+            <OrderDetail
+              key={path.split("/")[3]}
+              id={path.split("/")[3]}
+              config={config}
+            />
           ) : path === "/app/profile" ? (
             <Profile user={user} refresh={refresh} />
           ) : path === "/app/account" ? (
@@ -262,7 +354,10 @@ export default function App({ path }: { path: string }) {
 function Heading({ eyebrow, title, children }: any) {
   return (
     <div className="pagehead">
-      <span className="eyebrow">{/* taste-skill-ignore */}{eyebrow}</span>
+      <span className="eyebrow">
+        {/* taste-skill-ignore */}
+        {eyebrow}
+      </span>
       <h1>{title}</h1>
       {children && <p>{children}</p>}
     </div>
@@ -444,28 +539,127 @@ function Auth({ path, onDone }: any) {
     </div>
   );
 }
-function Dashboard() {
-  const [cards, setCards] = useState<any[]>([]),
-    [orders, setOrders] = useState<any[]>([]);
-  const [error, setError] = useState("");
+function LocalDraftNotice({ userId }: { userId: string }) {
+  const [drafts, setDrafts] = useState<any[]>([]);
   useEffect(() => {
+    const update = () => setDrafts(recoverableDrafts(userId));
+    update();
+    window.addEventListener("popcard-draft-change", update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener("popcard-draft-change", update);
+      window.removeEventListener("storage", update);
+    };
+  }, [userId]);
+  return drafts.length ? (
+    <aside
+      className="local-drafts notice"
+      aria-label="Brouillons à synchroniser"
+    >
+      <b>Des modifications vous attendent sur cet appareil.</b>
+      <p>Reprenez votre brouillon pour terminer son enregistrement.</p>
+      {drafts.map((draft) => (
+        <Link key={draft.key} href={"/app/cards/" + (draft.cardId || "new")}>
+          Reprendre{" "}
+          {[draft.data.firstName, draft.data.lastName].join(" ").trim() ||
+            "mon brouillon"}{" "}
+          <Icon kind="arrow" />
+        </Link>
+      ))}
+    </aside>
+  ) : null;
+}
+function Dashboard({ user }: any) {
+  const [cards, setCards] = useState<any[]>([]),
+    [orders, setOrders] = useState<any[]>([]),
+    [loaded, setLoaded] = useState(false),
+    [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
     Promise.all([api("cards"), api("orders")])
       .then(([c, o]) => {
-        setCards(c);
-        setOrders(o);
+        if (active) {
+          setCards(c);
+          setOrders(o);
+        }
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoaded(true));
+    return () => {
+      active = false;
+    };
   }, []);
+  const draft = cards.find((c) => c.status === "draft" && !c.identity_locked);
+  const preview = draft || cards[0];
+  const firstName = user.name.split(" ")[0];
   return (
     <>
-      <Heading
-        eyebrow="VOTRE ESPACE POPCARD"
-        title="Tout commence par une rencontre."
-      >
-        Retrouvez vos cartes et suivez vos commandes en un coup d’œil.
-      </Heading>
+      <div className="dashboard-intro">
+        <div>
+          <h2>Bonjour {firstName}.</h2>
+          <p>Vos cartes et vos prochaines rencontres commencent ici.</p>
+        </div>
+        <span className="dashboard-date">
+          {new Intl.DateTimeFormat("fr-MA", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }).format(new Date())}
+        </span>
+      </div>
       <Message text={error} />
-      <div className="stats">
+      <LocalDraftNotice userId={user.id} />
+      <section className="dashboard-hero">
+        <div>
+          <span className="eyebrow">VOTRE ESPACE POPCARD</span>
+          <h1>
+            {draft ? (
+              <>
+                Votre prochaine carte
+                <br />
+                prend forme.
+              </>
+            ) : (
+              <>
+                Prêt pour votre
+                <br />
+                prochaine rencontre ?
+              </>
+            )}
+          </h1>
+          <p>
+            {draft
+              ? "Retrouvez votre brouillon, ajustez vos informations et préparez votre commande."
+              : "Créez une carte qui vous ressemble et partagez votre activité en un scan."}
+          </p>
+          <Link
+            className="button primary"
+            href={draft ? "/app/cards/" + draft.id : "/app/cards/new"}
+          >
+            {draft ? "Reprendre mon brouillon" : "Créer ma première PopCard"}{" "}
+            <Icon kind="arrow" />
+          </Link>
+        </div>
+        <div className="dashboard-card-scene">
+          <CardPreview
+            data={
+              preview?.data || {
+                ...defaults,
+                primary: "#173E35",
+                accent: "#44B68A",
+                background: "#FCFBF6",
+                firstName: user.name.split(" ")[0],
+                lastName: user.name.split(" ").slice(1).join(" "),
+                company: "Votre entreprise",
+                title: "Votre fonction",
+              }
+            }
+            logo={preview ? logo(preview) : undefined}
+            watermark={false}
+          />
+        </div>
+      </section>
+      <div className="stats" aria-busy={!loaded}>
         {[
           ["Mes PopCards", cards.length],
           [
@@ -477,36 +671,84 @@ function Dashboard() {
             orders.filter((o) => !["delivered", "rejected"].includes(o.status))
               .length,
           ],
-        ].map(([l, n]) => (
-          <article key={l}>
-            <span>{l}</span>
-            <strong>{n}</strong>
+        ].map(([label, count]) => (
+          <article key={label}>
+            <span>{label}</span>
+            <strong>{loaded ? count : "—"}</strong>
           </article>
         ))}
       </div>
-      <div className="section-heading">
-        <h2>Mes dernières PopCards</h2>
-        <Link href="/app/cards">Tout voir ↗</Link>
-      </div>
       {cards.length ? (
-        <div className="cardgrid">
-          {cards.slice(0, 3).map((c) => (
-            <CardTile key={c.id} card={c} />
-          ))}
-        </div>
+        <>
+          <div className="section-heading">
+            <h2>Mes dernières PopCards</h2>
+            <Link href="/app/cards">Tout voir ↗</Link>
+          </div>
+          <div className="cardgrid">
+            {cards.slice(0, 3).map((c) => (
+              <CardTile key={c.id} card={c} />
+            ))}
+          </div>
+        </>
       ) : (
-        <Empty
-          title="Votre première PopCard vous attend."
-          text="Choisissez votre modèle et construisez votre présence professionnelle."
-          href="/app/cards/new"
-          action="Créer ma PopCard"
-        />
+        loaded && (
+          <>
+            <div className="section-heading">
+              <h2>Votre première PopCard, en trois étapes.</h2>
+            </div>
+            <div className="dashboard-start">
+              {[
+                [
+                  "01",
+                  "Choisissez votre modèle",
+                  "Votre logo, votre palette et votre style.",
+                  "/app/cards/new",
+                ],
+                [
+                  "02",
+                  "Renseignez vos informations",
+                  "Les coordonnées et liens que vous souhaitez partager.",
+                  "/app/cards/new",
+                ],
+                [
+                  "03",
+                  "Vérifiez et commandez",
+                  "Votre aperçu, puis le suivi de votre fabrication.",
+                  "/app/help",
+                ],
+              ].map(([number, label, text, href]) => (
+                <Link key={number} href={href}>
+                  <span className="start-number">{number}</span>
+                  <b>{label}</b>
+                  <p>{text}</p>
+                </Link>
+              ))}
+            </div>
+          </>
+        )
       )}
       <div className="section-heading">
         <h2>Suivi des commandes</h2>
         <Link href="/app/orders">Tout voir ↗</Link>
       </div>
-      <OrderTable orders={orders.slice(0, 5)} />
+      {orders.length ? (
+        <OrderTable orders={orders.slice(0, 5)} />
+      ) : (
+        <div className="dashboard-orders-empty">
+          <Icon kind="orders" />
+          <div>
+            <b>
+              {loaded
+                ? "Vos prochaines commandes seront regroupées ici."
+                : "Chargement de vos commandes…"}
+            </b>
+            <p>
+              Paiement, fabrication et livraison : suivez chaque étape depuis
+              votre espace.
+            </p>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -559,7 +801,7 @@ function CardTile({ card: c }: any) {
     </article>
   );
 }
-function Cards() {
+function Cards({ userId }: { userId: string }) {
   const [cards, setCards] = useState<any[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -573,6 +815,7 @@ function Cards() {
         Une carte pour chaque identité professionnelle.
       </Heading>
       <Message text={error} />
+      <LocalDraftNotice userId={userId} />
       <div className="cardgrid">
         {cards.map((c) => (
           <CardTile key={c.id} card={c} />
@@ -645,60 +888,30 @@ function OrderTable({ orders }: any) {
     />
   );
 }
-function Editor({ id }: any) {
+function Editor({ id, userId }: any) {
   const router = useRouter();
-  const [card, setCard] = useState<any>(null),
-    [d, setD] = useState<any>(structuredClone(defaults)),
-    [step, setStep] = useState(0),
+  const {
+    card,
+    d,
+    setD,
+    ready,
+    error,
+    setError,
+    saveStatus,
+    busy,
+    localLogo,
+    storageWarning,
+    flush,
+    onLogo,
+    resolveConflict,
+  } = useCardDraft(id, userId, defaults);
+  const [step, setStep] = useState(0),
     [side, setSide] = useState("recto"),
-    [error, setError] = useState(""),
-    [saveStatus, setSaveStatus] = useState(""),
-    [busy, setBusy] = useState(false),
-    [file, setFile] = useState<File | null>(null),
-    [originalFile, setOriginalFile] = useState<File | null>(null),
-    [localLogo, setLocalLogo] = useState<string>(),
-    [confirmed, setConfirmed] = useState(false);
-  const autoSaveTimer = useRef<any>(null);
+    [confirmed, setConfirmed] = useState(false),
+    [sending, setSending] = useState(false);
   useEffect(() => {
-    if (id) {
-      api("cards/" + id)
-        .then((c) => {
-          setCard(c);
-          setD({ ...defaults, ...c.data });
-        })
-        .catch((e) => setError(e.message));
-    } else {
-      api("cards", defaults)
-        .then((c) => {
-          setCard(c);
-          setSaveStatus("Brouillon initialisé");
-          window.history.replaceState(null, "", "/app/cards/" + c.id);
-        })
-        .catch(() => {});
-    }
+    setConfirmed(false);
   }, [id]);
-  useEffect(
-    () => () => {
-      if (localLogo) URL.revokeObjectURL(localLogo);
-    },
-    [localLogo],
-  );
-  useEffect(() => {
-    if (!card?.id) return;
-    setSaveStatus("Enregistrement…");
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
-      try {
-        await api("cards/" + card.id, d);
-        setSaveStatus("Brouillon sauvegardé");
-      } catch {
-        setSaveStatus("");
-      }
-    }, 800);
-    return () => {
-      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    };
-  }, [d, card?.id]);
   const locked =
     card &&
     (card.identity_locked || ["live", "suspended"].includes(card.status));
@@ -724,35 +937,46 @@ function Editor({ id }: any) {
     />
   );
   const save = async (go = false) => {
-    setBusy(true);
-    setError("");
     try {
-      let c = await api(card ? "cards/" + card.id : "cards", d);
-      if (file) {
-        const f = new FormData();
-        f.set("file", file);
-        if (originalFile) f.set("original", originalFile);
-        const r = await api("cards/" + c.id + "/logo", f);
-        c = { ...c, logo_id: r.logo_id, original_logo_id: r.original_logo_id };
-        setFile(null);
-      }
-      setCard(c);
+      const c = await flush(true);
       setError("Brouillon enregistré.");
-      if (go) router.push("/app/cards/" + c.id + "/checkout");
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+      if (go && c) router.push("/app/cards/" + c.id + "/checkout");
+    } catch {}
   };
+  if (!ready)
+    return (
+      <div className="editor-loading" role="status">
+        <span className="loading-orbit" />
+        <h2>
+          {error
+            ? "Le brouillon n’a pas pu être chargé."
+            : "Ouverture de votre brouillon…"}
+        </h2>
+        {error && (
+          <>
+            <p>{error}</p>
+            <button
+              className="button primary"
+              onClick={() => location.reload()}
+            >
+              Réessayer
+            </button>
+          </>
+        )}
+      </div>
+    );
   return (
     <>
       <Heading
         eyebrow="LE GÉNÉRATEUR POPCARD"
         title={locked ? "Actualisez votre mini-site." : "Créons votre PopCard."}
       >
-        Personnalisez à votre rythme. Votre travail s’enregistre automatiquement.
-        {saveStatus && <span className="save-status-pill">{saveStatus}</span>}
+        Personnalisez votre carte et retrouvez votre brouillon à tout moment.
+        {saveStatus && (
+          <span className="save-status-pill" role="status" aria-live="polite">
+            {saveStatus}
+          </span>
+        )}
       </Heading>
       <div className="wizardbar">
         {["Modèle", "Identité visuelle", "Informations", "Aperçu"].map(
@@ -770,293 +994,324 @@ function Editor({ id }: any) {
       </div>
       <div className="editorgrid">
         <section className="panel">
-          <span className="eyebrow">{/* taste-skill-ignore */}ÉTAPE 0{step + 1}</span>
-          {step === 0 && (
-            <>
-              <h2>Choisissez votre modèle.</h2>
-              <p>
-                Le recto présente votre identité. Le verso ouvre votre
-                mini-site.
-              </p>
-              <div className="templatechoices">
-                {[
-                  ["A", "Logo", "Votre marque au premier plan"],
-                  ["B", "Exécutif Sombre", "Finition prestige pour dirigeants et cadres"],
-                  ["C", "Épuré", "Une composition minimaliste"],
-                ].map(([v, t, s]) => (
-                  <button
-                    disabled={locked}
-                    key={v}
-                    onClick={() => setD({ ...d, tpl: v })}
-                    className={d.tpl === v ? "selected" : ""}
-                  >
-                    <strong>{t}</strong>
-                    <span>{s}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          {step === 1 && (
-            <>
-              <h2>À votre image.</h2>
-              {locked && (
-                <Message text="L’identité utilisée dans une commande est verrouillée. Vous pouvez modifier vos coordonnées à l’étape suivante." />
-              )}
-              <LogoStudio
-                initialResult={localLogo || logo(card || {})}
-                disabled={locked}
-                initialLogo={
-                  card?.original_logo_id
-                    ? "/api/files/" + card.original_logo_id
-                    : undefined
-                }
-                onLogo={async (f: File, url: string, original: File) => {
-                  setOriginalFile(original);
-                  setFile(f);
-                  setLocalLogo(url);
-                  if (card?.id) {
-                    try {
-                      setSaveStatus("Envoi du logo…");
-                      const formData = new FormData();
-                      formData.set("file", f);
-                      if (original) formData.set("original", original);
-                      const r = await api("cards/" + card.id + "/logo", formData);
-                      setCard((prev: any) => ({
-                        ...prev,
-                        logo_id: r.logo_id,
-                        original_logo_id: r.original_logo_id,
-                      }));
-                      setSaveStatus("Logo et brouillon sauvegardés");
-                    } catch (err: any) {
-                      setError(err.message);
-                    }
-                  }
-                }}
-                onPalette={(g: any) =>
-                  setD({
-                    ...d,
-                    primary: g.primary,
-                    accent: g.accent,
-                    background: g.background,
-                    ...(g.logoTile === undefined
-                      ? {}
-                      : { logoTile: g.logoTile }),
-                  })
-                }
-              />
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={d.logoTile}
-                  disabled={locked}
-                  onChange={(e) => setD({ ...d, logoTile: e.target.checked })}
-                />
-                Pastille blanche derrière le logo
-              </label>
-              <div className="two-cols">
-                {["primary", "accent", "background"].map((k, i) => (
-                  <Field
-                    key={k}
-                    label={
-                      [
-                        "Couleur principale",
-                        "Couleur d’accent",
-                        "Couleur de fond",
-                      ][i]
-                    }
-                    type="color"
-                    value={d[k]}
-                    disabled={locked}
-                    onChange={(e: any) => setD({ ...d, [k]: e.target.value })}
-                  />
-                ))}
-              </div>
-              <div className="two-cols">
-                {["fontTitle", "fontBody"].map((k, i) => (
-                  <label className="field" key={k}>
-                    {i ? "Police des textes" : "Police des titres"}
-                    <select
+          <div className="editor-fields">
+            <span className="eyebrow">
+              {/* taste-skill-ignore */}ÉTAPE 0{step + 1}
+            </span>
+            {step === 0 && (
+              <>
+                <h2>Choisissez votre modèle.</h2>
+                <p>
+                  Le recto présente votre identité. Le verso ouvre votre
+                  mini-site.
+                </p>
+                <div className="templatechoices">
+                  {[
+                    ["A", "Logo", "Votre marque au premier plan"],
+                    [
+                      "B",
+                      "Signature",
+                      "Une composition graphique qui affirme votre identité",
+                    ],
+                    ["C", "Épuré", "Une composition minimaliste"],
+                  ].map(([v, t, s]) => (
+                    <button
                       disabled={locked}
-                      value={d[k]}
-                      onChange={(e) => setD({ ...d, [k]: e.target.value })}
+                      key={v}
+                      onClick={() => setD({ ...d, tpl: v, designVersion: 2 })}
+                      className={d.tpl === v ? "selected" : ""}
                     >
-                      {[
-                        "Montserrat",
-                        "Open Sans",
-                        "Cormorant Garamond",
-                        "Poppins",
-                      ].map((f) => (
-                        <option key={f}>{f}</option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
-              </div>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <h2>Faisons connaissance.</h2>
-              <div className="two-cols">
-                {field("firstName", "Prénom")}
-                {field("lastName", "Nom")}
-              </div>
-              {field("title", "Fonction")}
-              {field("company", "Société")}
-              {field("city", "Ville")}
-              <label className="field">
-                Description
-                <textarea
-                  value={d.desc}
-                  maxLength={2000}
-                  rows={3}
-                  onChange={(e) => setD({ ...d, desc: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                Langue du mini-site
-                <select
-                  value={d.lang}
-                  onChange={(e) => setD({ ...d, lang: e.target.value })}
-                >
-                  <option value="fr">Français</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
-              <h3>Vos coordonnées</h3>
-              {d.phones.map((p: any, i: number) => (
-                <div className="repeat-row" key={i}>
-                  <input
-                    aria-label="Libellé téléphone"
-                    maxLength={60}
-                    value={p[0]}
-                    onChange={(e) =>
-                      setD({
-                        ...d,
-                        phones: d.phones.map((v: any, n: number) =>
-                          n === i ? [e.target.value, v[1]] : v,
-                        ),
-                      })
-                    }
-                  />
-                  <input
-                    aria-label="Téléphone"
-                    type="tel"
-                    maxLength={60}
-                    value={p[1]}
-                    onChange={(e) =>
-                      setD({
-                        ...d,
-                        phones: d.phones.map((v: any, n: number) =>
-                          n === i ? [v[0], e.target.value] : v,
-                        ),
-                      })
-                    }
-                  />
-                  <button
-                    onClick={() =>
-                      setD({
-                        ...d,
-                        phones: d.phones.filter((_: any, n: number) => n !== i),
-                      })
-                    }
-                  >
-                    ×
-                  </button>
+                      <strong>{t}</strong>
+                      <span>{s}</span>
+                    </button>
+                  ))}
                 </div>
-              ))}
-              {d.phones.length < 5 && (
-                <button
-                  className="textlink"
-                  onClick={() =>
-                    setD({ ...d, phones: [...d.phones, ["Mobile", ""]] })
+              </>
+            )}
+            {step === 1 && (
+              <>
+                <h2>À votre image.</h2>
+                {locked && (
+                  <Message text="L’identité utilisée dans une commande est verrouillée. Vous pouvez modifier vos coordonnées à l’étape suivante." />
+                )}
+                <LogoStudio
+                  initialResult={localLogo || logo(card || {})}
+                  disabled={locked}
+                  initialLogo={
+                    card?.original_logo_id
+                      ? "/api/files/" + card.original_logo_id
+                      : undefined
                   }
-                >
-                  + Ajouter un téléphone
-                </button>
-              )}
-              {d.emails.map((v: string, i: number) => (
-                <div className="repeat-row" key={i}>
-                  <input
-                    aria-label="E-mail"
-                    type="email"
-                    maxLength={254}
-                    value={v}
-                    onChange={(e) =>
-                      setD({
-                        ...d,
-                        emails: d.emails.map((x: string, n: number) =>
-                          i === n ? e.target.value : x,
-                        ),
-                      })
-                    }
-                  />
-                  <button
-                    onClick={() =>
-                      setD({
-                        ...d,
-                        emails: d.emails.filter((_: any, n: number) => n !== i),
-                      })
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {d.emails.length < 5 && (
-                <button
-                  className="textlink"
-                  onClick={() => setD({ ...d, emails: [...d.emails, ""] })}
-                >
-                  + Ajouter un e-mail
-                </button>
-              )}
-              {field("whatsapp", "WhatsApp", "tel")}
-              {field("website", "Site web · URL https://")}
-              {field("address", "Adresse")}
-              {field("instagram", "Instagram · URL https://")}
-              {field("linkedin", "LinkedIn · URL https://")}
-              {field("facebook", "Facebook · URL https://")}
-              <h3>Sections visibles</h3>
-              {Object.keys(d.show).map((k) => (
-                <label className="check" key={k}>
+                  onLogo={onLogo}
+                  onPalette={(g: any) =>
+                    setD({
+                      ...d,
+                      primary: g.primary,
+                      accent: g.accent,
+                      background: g.background,
+                      ...(g.logoTile === undefined
+                        ? {}
+                        : { logoTile: g.logoTile }),
+                    })
+                  }
+                />
+                <label className="check">
                   <input
                     type="checkbox"
-                    checked={d.show[k]}
-                    onChange={(e) =>
-                      setD({ ...d, show: { ...d.show, [k]: e.target.checked } })
-                    }
+                    checked={d.logoTile}
+                    disabled={locked}
+                    onChange={(e) => setD({ ...d, logoTile: e.target.checked })}
                   />
-                  {{
-                    desc: "Description",
-                    phones: "Téléphones",
-                    emails: "E-mails",
-                    whatsapp: "WhatsApp",
-                    website: "Site web",
-                    address: "Adresse",
-                    social: "Réseaux sociaux",
-                  }[k] || k}
+                  Pastille blanche derrière le logo
                 </label>
-              ))}
-            </>
-          )}
-          {step === 3 && (
-            <>
-              <h2>Le dernier coup d’œil.</h2>
-              <p>Vérifiez les deux faces et le mini-site avant de commander.</p>
-              <Message text="Votre aperçu reste privé. Le lien public sera activé à la fin de la production." />
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                />
-                J’ai vérifié mes aperçus et mes coordonnées.
-              </label>
-            </>
-          )}
-          <Message text={error} />
+                <div className="two-cols">
+                  {["primary", "accent", "background"].map((k, i) => (
+                    <Field
+                      key={k}
+                      label={
+                        [
+                          "Couleur principale",
+                          "Couleur d’accent",
+                          "Couleur de fond",
+                        ][i]
+                      }
+                      type="color"
+                      value={d[k]}
+                      disabled={locked}
+                      onChange={(e: any) => setD({ ...d, [k]: e.target.value })}
+                    />
+                  ))}
+                </div>
+                <div className="two-cols">
+                  {["fontTitle", "fontBody"].map((k, i) => (
+                    <label className="field" key={k}>
+                      {i ? "Police des textes" : "Police des titres"}
+                      <select
+                        disabled={locked}
+                        value={d[k]}
+                        onChange={(e) => setD({ ...d, [k]: e.target.value })}
+                      >
+                        {[
+                          "Montserrat",
+                          "Open Sans",
+                          "Cormorant Garamond",
+                          "Poppins",
+                        ].map((f) => (
+                          <option key={f}>{f}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+            {step === 2 && (
+              <>
+                <h2>Faisons connaissance.</h2>
+                <div className="two-cols">
+                  {field("firstName", "Prénom")}
+                  {field("lastName", "Nom")}
+                </div>
+                {field("title", "Fonction")}
+                {field("company", "Société")}
+                {field("city", "Ville")}
+                <label className="field">
+                  Description
+                  <textarea
+                    value={d.desc}
+                    maxLength={2000}
+                    rows={3}
+                    onChange={(e) => setD({ ...d, desc: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  Langue du mini-site
+                  <select
+                    value={d.lang}
+                    onChange={(e) => setD({ ...d, lang: e.target.value })}
+                  >
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                  </select>
+                </label>
+                <h3>Vos coordonnées</h3>
+                {d.phones.map((p: any, i: number) => (
+                  <div className="repeat-row" key={i}>
+                    <input
+                      aria-label="Libellé téléphone"
+                      maxLength={60}
+                      value={p[0]}
+                      onChange={(e) =>
+                        setD({
+                          ...d,
+                          phones: d.phones.map((v: any, n: number) =>
+                            n === i ? [e.target.value, v[1]] : v,
+                          ),
+                        })
+                      }
+                    />
+                    <input
+                      aria-label="Téléphone"
+                      type="tel"
+                      maxLength={60}
+                      value={p[1]}
+                      onChange={(e) =>
+                        setD({
+                          ...d,
+                          phones: d.phones.map((v: any, n: number) =>
+                            n === i ? [v[0], e.target.value] : v,
+                          ),
+                        })
+                      }
+                    />
+                    <button
+                      onClick={() =>
+                        setD({
+                          ...d,
+                          phones: d.phones.filter(
+                            (_: any, n: number) => n !== i,
+                          ),
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {d.phones.length < 5 && (
+                  <button
+                    className="textlink"
+                    onClick={() =>
+                      setD({ ...d, phones: [...d.phones, ["Mobile", ""]] })
+                    }
+                  >
+                    + Ajouter un téléphone
+                  </button>
+                )}
+                {d.emails.map((v: string, i: number) => (
+                  <div className="repeat-row" key={i}>
+                    <input
+                      aria-label="E-mail"
+                      type="email"
+                      maxLength={254}
+                      value={v}
+                      onChange={(e) =>
+                        setD({
+                          ...d,
+                          emails: d.emails.map((x: string, n: number) =>
+                            i === n ? e.target.value : x,
+                          ),
+                        })
+                      }
+                    />
+                    <button
+                      onClick={() =>
+                        setD({
+                          ...d,
+                          emails: d.emails.filter(
+                            (_: any, n: number) => n !== i,
+                          ),
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {d.emails.length < 5 && (
+                  <button
+                    className="textlink"
+                    onClick={() => setD({ ...d, emails: [...d.emails, ""] })}
+                  >
+                    + Ajouter un e-mail
+                  </button>
+                )}
+                {field("whatsapp", "WhatsApp", "tel")}
+                {field("website", "Site web · URL https://")}
+                {field("address", "Adresse")}
+                {field("instagram", "Instagram · URL https://")}
+                {field("linkedin", "LinkedIn · URL https://")}
+                {field("facebook", "Facebook · URL https://")}
+                <h3>Sections visibles</h3>
+                {Object.keys(d.show).map((k) => (
+                  <label className="check" key={k}>
+                    <input
+                      type="checkbox"
+                      checked={d.show[k]}
+                      onChange={(e) =>
+                        setD({
+                          ...d,
+                          show: { ...d.show, [k]: e.target.checked },
+                        })
+                      }
+                    />
+                    {{
+                      desc: "Description",
+                      phones: "Téléphones",
+                      emails: "E-mails",
+                      whatsapp: "WhatsApp",
+                      website: "Site web",
+                      address: "Adresse",
+                      social: "Réseaux sociaux",
+                    }[k] || k}
+                  </label>
+                ))}
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <h2>Le dernier coup d’œil.</h2>
+                <p>
+                  Vérifiez les deux faces et le mini-site avant de commander.
+                </p>
+                <Message text="Votre aperçu reste privé. Le lien public sera activé à la fin de la production." />
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                  />
+                  J’ai vérifié mes aperçus et mes coordonnées.
+                </label>
+              </>
+            )}
+            <Message text={storageWarning} />
+            <Message text={error} />
+            {(saveStatus === "À synchroniser" ||
+              saveStatus === "Conflit de modification") && (
+              <div className="draft-retry">
+                <button
+                  className="button outline"
+                  disabled={busy}
+                  onClick={() => save()}
+                >
+                  Réessayer l’enregistrement
+                </button>
+                {saveStatus === "Conflit de modification" && (
+                  <div className="conflict-actions">
+                    <p>
+                      Une autre version a été enregistrée. Choisissez celle que
+                      vous souhaitez conserver.
+                    </p>
+                    <button
+                      className="button outline"
+                      disabled={busy}
+                      onClick={() => resolveConflict(false)}
+                    >
+                      Charger la version enregistrée
+                    </button>
+                    <button
+                      className="button primary"
+                      disabled={busy}
+                      onClick={() => resolveConflict(true)}
+                    >
+                      Enregistrer ma version
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="wizardactions">
             <button
               className="button outline"
@@ -1104,6 +1359,7 @@ function Editor({ id }: any) {
           </div>
           {side === "site" ? (
             <MiniSite
+              embedded
               data={d}
               logo={localLogo || logo(card || {})}
               watermark
@@ -1121,11 +1377,11 @@ function Editor({ id }: any) {
           {card && (
             <button
               className="button outline"
-              disabled={busy || !!file}
+              disabled={busy || sending}
               onClick={async () => {
-                setBusy(true);
+                setSending(true);
                 try {
-                  await api("cards/" + card.id, d);
+                  await flush(true);
                   const r = await api(
                     "cards/" + card.id + "/share-preview",
                     {},
@@ -1140,7 +1396,7 @@ function Editor({ id }: any) {
                 } catch (e: any) {
                   setError(e.message);
                 } finally {
-                  setBusy(false);
+                  setSending(false);
                 }
               }}
             >

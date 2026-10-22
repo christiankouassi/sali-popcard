@@ -6,9 +6,10 @@ import { contrast, onColor, accessibleColor } from "@/lib/colors.mjs";
 import "./reference.css";
 export const defaults = {
   tpl: "B",
-  primary: "#1C2C46",
-  accent: "#1D9878",
-  background: "#FFFFFF",
+  designVersion: 2,
+  primary: "#173E35",
+  accent: "#44B68A",
+  background: "#FCFBF6",
   firstName: "",
   lastName: "",
   company: "",
@@ -38,6 +39,45 @@ export const defaults = {
   logoTile: false,
 };
 const paths: Record<string, React.ReactNode> = {
+  dashboard: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  cards: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M7 3h12M6 11h5M6 15h8" />
+    </>
+  ),
+  orders: (
+    <>
+      <path d="M3 7l9-4 9 4v11l-9 4-9-4zM3 7l9 4 9-4M12 11v11M7 5l10 4" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M10 3h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3z" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 17h.01" />
+    </>
+  ),
+  arrow: <path d="M4 12h16M14 6l6 6-6 6" />,
+  check: <path d="M5 12l4 4L19 6" />,
+  qr: (
+    <>
+      <path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h3v3h3v3h-6z" />
+      <path d="M12 3v4M3 12h4M12 12h9M12 16v5" />
+    </>
+  ),
   phone: (
     <path d="M5 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L14 12l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z" />
   ),
@@ -246,7 +286,7 @@ export function CardPreview({
   watermark?: boolean;
   url?: string;
 }) {
-  const d = { ...defaults, ...data },
+  const d = { ...defaults, ...data, designVersion: data?.designVersion ?? 1 },
     P = d.primary,
     A = d.accent,
     bg = d.background || "#fff";
@@ -263,11 +303,14 @@ export function CardPreview({
     ["phone", d.phones[0]?.[1]],
     ["pin", d.city],
     ["mail", d.emails[0]],
-    ["globe", d.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "")],
+    [
+      "globe",
+      d.website?.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, ""),
+    ],
   ].filter((x) => x[1]);
   return (
     <div
-      className={`ref-card model-${d.tpl} side-${side}`}
+      className={`ref-card model-${d.tpl} side-${side} version-${d.designVersion}`}
       style={{ fontFamily: d.fontBody }}
     >
       {d.tpl === "A" ? (
@@ -281,6 +324,62 @@ export function CardPreview({
           <div className="fill A-verso" style={{ background: "#fff" }}>
             <div className="qr">{qr}</div>
             <div className="band" style={{ background: P }} />
+          </div>
+        )
+      ) : d.tpl === "B" && d.designVersion === 2 ? (
+        side === "recto" ? (
+          <div
+            className="fill B-recto signature-recto"
+            style={{ background: bg, color: accessibleColor(P, bg, 4.5) }}
+          >
+            <div
+              className="signature-spine"
+              style={{ background: P, color: onColor(P) }}
+            >
+              <div className="signature-logo">
+                <Logo d={d} logo={logo} tile={d.logoTile} surface={P} />
+              </div>
+              <span className="signature-company">
+                {d.company || "Votre entreprise"}
+              </span>
+              <i style={{ background: A }} />
+            </div>
+            <div className="signature-content">
+              <span
+                className="signature-kicker"
+                style={{ color: accessibleColor(A, bg, 4.5) }}
+              >
+                CARTE DE VISITE
+              </span>
+              <div className="nm" style={{ fontFamily: d.fontTitle }}>
+                <span>{d.firstName || "Votre"}</span>
+                <span>{d.lastName || "nom"}</span>
+              </div>
+              <div className="tt">{d.title || "Votre fonction"}</div>
+              <div className="signature-rule" style={{ background: A }} />
+              <div className="signature-lines">
+                {lines.map(([kind, value]) => (
+                  <div key={kind}>
+                    <Icon kind={kind} />
+                    <span>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="fill B-verso signature-verso"
+            style={{ background: P, color: onColor(P) }}
+          >
+            <div className="signature-invite">
+              <span>ON GARDE</span>
+              <strong>le contact ?</strong>
+              <span>Scannez ma PopCard.</span>
+              <Icon kind="arrow" />
+            </div>
+            <div className="signature-qr">{qr}</div>
+            <div className="signature-edge" style={{ background: A }} />
           </div>
         )
       ) : d.tpl === "B" ? (
@@ -309,7 +408,10 @@ export function CardPreview({
               {d.title && (
                 <div
                   className="tt"
-                  style={{ color: accessibleColor(A, P, 4.5), fontFamily: d.fontTitle }}
+                  style={{
+                    color: accessibleColor(A, P, 4.5),
+                    fontFamily: d.fontTitle,
+                  }}
                 >
                   {d.title}
                 </div>
@@ -320,7 +422,10 @@ export function CardPreview({
             <div className="exec-footer">
               {lines.slice(0, 2).map(([k, v]) => (
                 <div key={k} className="exec-line">
-                  <span className="exec-ico" style={{ color: accessibleColor(A, P, 4.5) }}>
+                  <span
+                    className="exec-ico"
+                    style={{ color: accessibleColor(A, P, 4.5) }}
+                  >
                     <Icon kind={k} />
                   </span>
                   <span className="exec-val">{v}</span>
@@ -383,14 +488,17 @@ export function MiniSite({
   logo,
   watermark = false,
   placeholders = false,
+  embedded = false,
 }: {
   data: any;
   logo?: string;
   watermark?: boolean;
   placeholders?: boolean;
+  embedded?: boolean;
 }) {
   const d = { ...defaults, ...data, show: { ...defaults.show, ...data.show } },
     en = d.lang === "en";
+  const NameHeading = embedded ? "h2" : "h1";
   const fullName = [d.firstName, d.lastName].join(" ").trim(),
     name =
       fullName ||
@@ -483,7 +591,7 @@ export function MiniSite({
         className="ms-card"
         style={{ background: d.background || "#FFFFFF" }}
       >
-        <h1 className="ms-name">{name}</h1>
+        <NameHeading className="ms-name">{name}</NameHeading>
         <div className="ms-title">
           {d.title || (placeholders ? "Fonction" : "")}
         </div>

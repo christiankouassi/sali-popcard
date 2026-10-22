@@ -1,10 +1,10 @@
 {
   "name": "sali-popcard-next",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "node scripts/build.mjs",
     "start": "node dist/server.js",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "admin": "node --env-file=.env.local scripts/admin.mjs",
@@ -14,11 +14,12 @@
     "test:designs": "node tests/designs.mjs",
     "test:smtp": "node tests/run-integration.mjs --smtp",
     "build:dist": "npm run build && node scripts/package-dist.mjs",
-    "test:dist": "node tests/run-integration.mjs --standalone"
+    "test:dist": "node tests/run-integration.mjs --standalone",
+    "test:journeys": "node tests/e2e-journeys.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "next": "^16.0.0",
+    "next": "16.4.2",
     "nodemailer": "^10.1.0",
     "pdfjs-dist": "^6.4.299",
     "pg": "^8.16.3",

@@ -1,11 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
-import {
-  extractPixelColors,
-  palettes,
-  logoAdvice,
-  removeConnectedBackground,
-} from "@/lib/colors.mjs";
+import { extractPixelColors, palettes, logoAdvice } from "@/lib/colors.mjs";
+function inspectLogo(canvas: HTMLCanvasElement) {
+  const factor = Math.min(1, 128 / Math.max(canvas.width, canvas.height));
+  const sample = document.createElement("canvas");
+  sample.width = Math.max(1, Math.round(canvas.width * factor));
+  sample.height = Math.max(1, Math.round(canvas.height * factor));
+  const ctx = sample.getContext("2d")!;
+  ctx.drawImage(canvas, 0, 0, sample.width, sample.height);
+  const pixels = ctx.getImageData(0, 0, sample.width, sample.height).data;
+  return {
+    advice: logoAdvice(pixels, sample.width, sample.height),
+    groups: palettes(extractPixelColors(pixels)),
+  };
+}
 export default function LogoStudio({
   disabled,
   onLogo,
@@ -31,26 +39,11 @@ export default function LogoStudio({
       canvas.height = image.naturalHeight;
       canvas.getContext("2d")!.drawImage(image, 0, 0);
       setSource(canvas);
-      setAdvice(
-        logoAdvice(
-          canvas
-            .getContext("2d")!
-            .getImageData(0, 0, canvas.width, canvas.height).data,
-          canvas.width,
-          canvas.height,
-        ),
-      );
+      const analysis = inspectLogo(canvas);
+      setAdvice(analysis.advice);
+      setGroups(analysis.groups);
       setOriginal(canvas.toDataURL());
       setPreview(initialResult || canvas.toDataURL());
-      setGroups(
-        palettes(
-          extractPixelColors(
-            canvas
-              .getContext("2d")!
-              .getImageData(0, 0, canvas.width, canvas.height).data,
-          ),
-        ),
-      );
     };
     image.src = initialLogo;
   }, [initialLogo]);
@@ -72,7 +65,7 @@ export default function LogoStudio({
         "image/png",
       ),
     );
-    onLogo(
+    await onLogo(
       new File([blob], "logo.png", { type: "image/png" }),
       url,
       new File([originalBlob], "logo-original.png", { type: "image/png" }),
@@ -80,23 +73,10 @@ export default function LogoStudio({
   }
   async function accept(canvas: HTMLCanvasElement) {
     setSource(canvas);
-    setAdvice(
-      logoAdvice(
-        canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height)
-          .data,
-        canvas.width,
-        canvas.height,
-      ),
-    );
+    const analysis = inspectLogo(canvas);
+    setAdvice(analysis.advice);
+    setGroups(analysis.groups);
     setOriginal(canvas.toDataURL());
-    const c = canvas.getContext("2d")!;
-    setGroups(
-      palettes(
-        extractPixelColors(
-          c.getImageData(0, 0, canvas.width, canvas.height).data,
-        ),
-      ),
-    );
     await emit(canvas, canvas);
   }
   async function renderPDF(doc: any, n: number) {
@@ -191,6 +171,10 @@ export default function LogoStudio({
         const image = new Image();
         image.src = url;
         await image.decode();
+        if (image.naturalWidth * image.naturalHeight > 40000000)
+          throw Error(
+            "Image trop grande. Utilisez un logo de moins de 40 mégapixels.",
+          );
         const scale = Math.min(
             1,
             1400 / Math.max(image.naturalWidth, image.naturalHeight),
@@ -226,13 +210,14 @@ export default function LogoStudio({
         />
       </label>
       <small>
-        Un seul import. Le fichier est converti en PNG pour les aperçus et la
-        production.
+        Importez votre logo, idéalement avec un fond transparent. Vos couleurs
+        vous seront proposées automatiquement.
       </small>
       {pdf?.numPages > 1 && (
         <label className="field">
           Page du PDF
           <select
+            aria-label="Page du PDF"
             disabled={disabled || processing}
             value={page}
             onChange={async (e) => {

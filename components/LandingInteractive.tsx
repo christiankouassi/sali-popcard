@@ -1,209 +1,352 @@
 "use client";
-import React, { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Icon, CardPreview } from "./Preview";
+import { CardPreview, Icon, MiniSite } from "./Preview";
 
-// --- Carte 3D interactive avec effet de brillance / tilt au curseur ----------
 export function HeroCard3D({ data }: { data: any }) {
-  const [rot, setRot] = useState({ x: 0, y: 0, glareX: 50, glareY: 50, active: false });
-  const ref = useRef<HTMLDivElement>(null);
-
-  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const px = (x / rect.width) * 2 - 1; // -1 à +1
-    const py = (y / rect.height) * 2 - 1; // -1 à +1
-    setRot({
-      x: -py * 14, // inclinaison X
-      y: px * 16,  // inclinaison Y
-      glareX: (x / rect.width) * 100,
-      glareY: (y / rect.height) * 100,
-      active: true,
-    });
-  };
-
-  const onMouseLeave = () => {
-    setRot({ x: 0, y: 0, glareX: 50, glareY: 50, active: false });
-  };
-
+  const frame = useRef<HTMLDivElement>(null);
+  const raf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
   return (
     <div
-      ref={ref}
-      className="hero-tilt-wrapper"
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
+      className="lp-product-scene"
+      aria-label="Aperçu de la PopCard et de son mini-site"
     >
-      <div
-        className="hero-tilt-card"
-        style={{
-          transform: `perspective(1000px) rotateX(${rot.x}deg) rotateY(${rot.y}deg) ${
-            rot.active ? "scale3d(1.03, 1.03, 1.03)" : "scale3d(1, 1, 1)"
-          }`,
-        }}
-      >
-        <CardPreview data={data} watermark={false} side="recto" />
+      <div className="lp-scene-orbit orbit-one" />
+      <div className="lp-scene-orbit orbit-two" />
+      <div className="lp-product-tag">
+        <span className="lp-status-dot" /> Votre identité, connectée.
+      </div>
+      <div className="lp-card-entry">
         <div
-          className="hero-card-glare"
-          style={{
-            background: rot.active
-              ? `radial-gradient(circle at ${rot.glareX}% ${rot.glareY}%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 65%)` /* taste-skill-ignore */
-              : "none",
-            opacity: rot.active ? 1 : 0,
+          ref={frame}
+          className="lp-live-card"
+          onPointerMove={(e) => {
+            if (
+              e.pointerType !== "mouse" ||
+              matchMedia("(prefers-reduced-motion: reduce)").matches
+            )
+              return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+            cancelAnimationFrame(raf.current);
+            raf.current = requestAnimationFrame(() => {
+              if (frame.current)
+                frame.current.style.transform = `perspective(1200px) rotateX(${-y * 9}deg) rotateY(${x * 12}deg) rotateZ(-8deg)`;
+            });
           }}
-        />
-      </div>
-      <div className="hero-tilt-shadow" style={{ opacity: rot.active ? 0.9 : 0.5 }} />
-    </div>
-  );
-}
-
-// --- Section Bento Grid interactive ------------------------------------------
-export function BentoGrid() {
-  const [synced, setSynced] = useState(false);
-
-  return (
-    <div className="bento-grid">
-      {/* Tuile 1 : Grand format - Le Geste Sans Contact */}
-      <article className="bento-card bento-wide">
-        <div className="bento-visual-bg">
-          <img
-            src="/assets/nfc-tap-action.jpg"
-            alt="Démonstration du geste NFC avec la carte SALI PopCard"
-            className="bento-photo"
+          onPointerLeave={() => {
+            cancelAnimationFrame(raf.current);
+            if (frame.current) frame.current.style.transform = "";
+          }}
+        >
+          <CardPreview
+            data={data}
+            logo="/assets/logo-white-crop.svg"
+            watermark={false}
           />
-          <div className="bento-gradient-overlay" />
-          <div className="nfc-pulse-ring" />
         </div>
-        <div className="bento-content">
-          <span className="bento-tag">SANS CONTACT · ZÉRO APPLICATION</span>
-          <h3>Le geste instantané : Tap & Connect</h3>
-          <p>
-            Approchez votre PopCard du haut d’un smartphone. Votre profil professionnel s’affiche
-            immédiatement sans installer d’application ni saisir de numéro.
-          </p>
-        </div>
-      </article>
-
-      {/* Tuile 2 : Mini-site dynamique */}
-      <article className="bento-card bento-minisite">
-        <div className="bento-content">
-          <span className="bento-tag">PRÉSENCE NUMÉRIQUE</span>
-          <h3>Votre mini-site professionnel</h3>
-          <p>
-            Appel direct, messagerie WhatsApp, liens LinkedIn, site web et téléchargement de votre
-            fiche contact en 1 clic.
-          </p>
-          <div className="mini-actions-preview">
-            <span className="action-pill"><Icon kind="phone" /> Appeler</span>
-            <span className="action-pill action-wa"><Icon kind="wa" /> WhatsApp</span>
-            <span className="action-pill"><Icon kind="globe" /> Site</span>
-            <span className="action-pill action-vcard"><Icon kind="user" /> Enregistrer contact</span>
+      </div>
+      <div className="lp-phone-entry">
+        <div className="lp-phone">
+          <div className="lp-phone-notch" />
+          <div className="lp-phone-screen" inert>
+            <MiniSite embedded data={data} logo="/assets/logo-white-crop.svg" />
           </div>
         </div>
-      </article>
-
-      {/* Tuile 3 : Mise à jour en temps réel */}
-      <article className="bento-card bento-update">
-        <div className="bento-content">
-          <span className="bento-tag">VALABLE À VIE</span>
-          <h3>Mise à jour à distance</h3>
-          <p>
-            Nouveau poste ou changement de numéro ? Modifiez votre profil en ligne, votre carte
-            physique reste la même pour toujours.
-          </p>
-          <div className="sync-demo">
-            <div className="sync-badge">
-              <span className={`sync-dot ${synced ? "ping" : ""}`} />
-              <span>{synced ? "Synchronisé en direct" : "Profil connecté"}</span>
-            </div>
-            <button
-              type="button"
-              className="sync-toggle-btn"
-              onClick={() => setSynced(!synced)}
-            >
-              Simuler mise à jour ↻
-            </button>
-          </div>
-        </div>
-      </article>
-
-      {/* Tuile 4 : Écologique & Rentable */}
-      <article className="bento-card bento-eco">
-        <div className="bento-content">
-          <span className="bento-tag">IMPACT & ÉCONOMIE</span>
-          <div className="eco-metric">
-            <strong>88%</strong>
-            <span>des cartes papier finissent jetées</span>
-          </div>
-          <p>
-            Une seule PopCard remplace des milliers de cartes papier obsolètes. Écologique, moderne et
-            rentable dès votre premier salon.
-          </p>
-        </div>
-      </article>
+      </div>
+      <div className="lp-product-caption">
+        <Icon kind="qr" />
+        <span>
+          Une carte PVC.
+          <br />
+          <b>Un mini-site qui vous ressemble.</b>
+        </span>
+      </div>
+      <span className="lp-example-label">Aperçus de démonstration</span>
     </div>
   );
 }
 
-// --- Section Sticky Scroll synchronisée ---------------------------------------
+const processSteps = [
+  {
+    title: "Présentez votre carte.",
+    label: "01 / LA RENCONTRE",
+    text: "Votre interlocuteur scanne le QR code avec l’appareil photo de son téléphone.",
+    icon: "qr",
+  },
+  {
+    title: "Ouvrez toutes les possibilités.",
+    label: "02 / VOTRE MINI-SITE",
+    text: "Coordonnées, WhatsApp, site web et réseaux sociaux : votre activité tient dans une seule page.",
+    icon: "globe",
+  },
+  {
+    title: "Gardez le contact.",
+    label: "03 / LA SUITE",
+    text: "Votre interlocuteur peut enregistrer votre fiche contact. Vous pouvez ensuite actualiser vos informations depuis votre espace.",
+    icon: "user",
+  },
+];
 export function StickyProcess({ sample }: { sample: any }) {
-  const [activeStep, setActiveStep] = useState(0);
-
-  const steps = [
-    {
-      step: 1,
-      title: "Personnalisez votre identité",
-      desc: "Importez votre logo d’entreprise, sélectionnez vos teintes et renseignez vos coordonnées. Votre aperçu en direct réagit instantanément.",
-      badge: "Éditeur fluide en temps réel",
-      tpl: "B",
-    },
-    {
-      step: 2,
-      title: "Fabrication de prestige",
-      desc: "Chaque carte intègre une puce NFC haute durabilité protégée dans un corps satiné rigide, avec gravure soignée et QR code haute lisibilité.",
-      badge: "Puce NTAG & finitions haut de gamme",
-      tpl: "A",
-    },
-    {
-      step: 3,
-      title: "Réseautez sans limite",
-      desc: "Recevez votre carte en main propre. Votre mini-site est activé dès l’expédition : vous partagez votre univers professionnel en un seul geste.",
-      badge: "Prêt à l'emploi dès réception",
-      tpl: "C",
-    },
-  ];
-
+  const [active, setActive] = useState(0);
+  const steps = useRef<(HTMLButtonElement | null)[]>([]);
+  useEffect(() => {
+    const mq = matchMedia("(min-width: 901px)");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!mq.matches) return;
+        for (const entry of entries)
+          if (entry.isIntersecting)
+            setActive(Number((entry.target as HTMLElement).dataset.step));
+      },
+      { rootMargin: "-32% 0px -38% 0px", threshold: 0 },
+    );
+    steps.current.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="sticky-process-wrap">
-      {/* Colonne gauche fixe : Carte avec mise à jour interactive selon l'étape */}
-      <div className="sticky-preview-col">
-        <div className="sticky-card-box">
-          <span className="step-indicator-pill">ÉTAPE {steps[activeStep].step} · MODÈLE {steps[activeStep].tpl}</span>
-          <CardPreview data={{ ...sample, tpl: steps[activeStep].tpl }} watermark={false} side="recto" />
-          <div className="sticky-phone-glimpse">
-            <img src="/assets/hero-showcase.jpg" alt="Aperçu mobile SALI PopCard" />
+    <div className="lp-process">
+      <div className="lp-process-visual">
+        <div className="lp-process-stage" data-active={active}>
+          <span className="lp-stage-label">
+            <span className="lp-status-dot" />
+            {processSteps[active].label}
+          </span>
+          <div className="lp-stage-content" key={active}>
+            {active === 0 ? (
+              <div className="lp-scan-demo">
+                <CardPreview
+                  data={sample}
+                  side="verso"
+                  logo="/assets/logo-white-crop.svg"
+                  watermark={false}
+                />
+                <div className="lp-scan-line" />
+                <span className="lp-scan-caption">
+                  <Icon kind="qr" /> Scannez le QR code
+                </span>
+              </div>
+            ) : active === 1 ? (
+              <div className="lp-demo-phone" inert>
+                <MiniSite
+                  embedded
+                  data={sample}
+                  logo="/assets/logo-white-crop.svg"
+                />
+              </div>
+            ) : (
+              <div className="lp-contact-demo">
+                <span className="lp-contact-avatar">NB</span>
+                <h3>Nadia Bennani</h3>
+                <p>Direction commerciale</p>
+                <span className="lp-contact-saved">
+                  <Icon kind="check" /> Fiche contact prête à enregistrer
+                </span>
+                <div className="lp-contact-lines">
+                  <span>
+                    <Icon kind="phone" /> +212 600 000 000
+                  </span>
+                  <span>
+                    <Icon kind="mail" /> contact@exemple.ma
+                  </span>
+                </div>
+                <span className="lp-demo-note">Exemple de présentation</span>
+              </div>
+            )}
+          </div>
+          <div className="lp-stage-dots" aria-hidden="true">
+            {processSteps.map((_, i) => (
+              <i className={i === active ? "active" : ""} key={i} />
+            ))}
           </div>
         </div>
       </div>
-
-      {/* Colonne droite défilante : Les étapes */}
-      <div className="sticky-steps-col">
-        {steps.map((st, i) => (
-          <div
-            key={st.step}
-            className={`process-step-item ${activeStep === i ? "active-step" : ""}`}
-            onMouseEnter={() => setActiveStep(i)}
-            onClick={() => setActiveStep(i)}
+      <div className="lp-process-steps">
+        {processSteps.map((step, i) => (
+          <button
+            type="button"
+            key={step.title}
+            ref={(el) => {
+              steps.current[i] = el;
+            }}
+            data-step={i}
+            className={"lp-process-step " + (i === active ? "active" : "")}
+            aria-pressed={i === active}
+            onClick={() => setActive(i)}
           >
-            <span className="step-num">{st.step}</span>
-            <span className="step-badge">{st.badge}</span>
-            <h3>{st.title}</h3>
-            <p>{st.desc}</p>
-          </div>
+            <span className="lp-process-number">0{i + 1}</span>
+            <span className="lp-step-copy">
+              <span className="lp-step-icon">
+                <Icon kind={step.icon} />
+              </span>
+              <strong>{step.title}</strong>
+              <span>{step.text}</span>
+            </span>
+            <span className="lp-step-arrow">↗</span>
+          </button>
         ))}
       </div>
     </div>
   );
+}
+
+export function ModelExplorer({ sample }: { sample: any }) {
+  const [tpl, setTpl] = useState("B");
+  const [side, setSide] = useState("recto");
+  const [color, setColor] = useState("#173E35");
+  const models = [
+    ["A", "Essentiel", "Votre logo au premier plan."],
+    ["B", "Signature", "Une identité graphique affirmée."],
+    ["C", "Studio", "Clair, précis et contemporain."],
+  ];
+  return (
+    <div className="lp-bento">
+      <article className="lp-model-explorer">
+        <div className="lp-bento-head">
+          <span>À VOTRE IMAGE</span>
+          <span>03 modèles</span>
+        </div>
+        <div
+          className="lp-model-tabs"
+          role="group"
+          aria-label="Modèles de démonstration"
+        >
+          {models.map(([v, name]) => (
+            <button
+              type="button"
+              key={v}
+              aria-pressed={v === tpl}
+              className={v === tpl ? "active" : ""}
+              onClick={() => setTpl(v)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        <div className="lp-model-preview">
+          <div key={tpl + side + color}>
+            <CardPreview
+              data={{ ...sample, tpl, primary: color }}
+              side={side}
+              watermark={false}
+              logo={
+                tpl === "B" && side === "recto"
+                  ? "/assets/logo-white-crop.svg"
+                  : "/assets/logo-color.svg"
+              }
+            />
+          </div>
+        </div>
+        <div className="lp-model-controls">
+          <div
+            className="lp-swatches"
+            role="group"
+            aria-label="Couleurs de démonstration"
+          >
+            {[
+              ["#173E35", "Vert profond"],
+              ["#1C2C46", "Bleu nuit"],
+              ["#633B4A", "Prune"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                style={{ background: value }}
+                aria-label={label}
+                aria-pressed={value === color}
+                onClick={() => setColor(value)}
+              >
+                {value === color && <Icon kind="check" />}
+              </button>
+            ))}
+          </div>
+          <div
+            className="lp-side-tabs"
+            role="group"
+            aria-label="Face de la carte"
+          >
+            {["recto", "verso"].map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={value === side}
+                className={side === value ? "active" : ""}
+                onClick={() => setSide(value)}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        </div>
+        <h3>{models.find((m) => m[0] === tpl)?.[2]}</h3>
+        <p>
+          Choisissez un modèle, ajoutez votre logo et composez votre palette
+          dans l’éditeur.
+        </p>
+        <Link href="/inscription" className="lp-text-link">
+          Personnaliser ma PopCard <Icon kind="arrow" />
+        </Link>
+      </article>
+      <article className="lp-photo-tile">
+        <img
+          src="/assets/popcard-rencontre-v3.webp"
+          loading="lazy"
+          width="1536"
+          height="1024"
+          alt="Deux professionnels échangent une carte de visite dans un espace de travail lumineux"
+        />
+        <div>
+          <span>DU CONCRET AU NUMÉRIQUE</span>
+          <h3>
+            La rencontre est réelle.
+            <br />
+            Le lien continue.
+          </h3>
+        </div>
+      </article>
+      <article className="lp-update-tile">
+        <span className="lp-tile-icon">
+          <Icon kind="settings" />
+        </span>
+        <h3>
+          Vos informations évoluent.
+          <br />
+          Votre carte vous suit.
+        </h3>
+        <p>
+          Actualisez vos coordonnées et vos liens dans votre espace, sans
+          réimprimer votre QR code.
+        </p>
+        <div className="lp-update-demo">
+          <span className="lp-status-dot" /> Un profil toujours à jour{" "}
+          <Icon kind="check" />
+        </div>
+      </article>
+    </div>
+  );
+}
+
+export function LandingMotion() {
+  useEffect(() => {
+    const targets = document.querySelectorAll(".lp-reveal");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries)
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+      },
+      { threshold: 0.08 },
+    );
+    targets.forEach((el) => {
+      el.classList.add("will-reveal");
+      observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+  return null;
 }

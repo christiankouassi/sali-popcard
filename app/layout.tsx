@@ -1,4 +1,6 @@
 import "./globals.css";
+import "./redesign.css";
+import PopCardApp from "@/components/App";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "PopCard · SALI DigiCom",
@@ -12,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body>
+        <PopCardApp />
+        {children}
+      </body>
     </html>
   );
 }

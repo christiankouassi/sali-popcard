@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { query, transaction } from "@/lib/db";
@@ -26,6 +26,7 @@ const passwordSchema = z
   .regex(/[0-9]/);
 const cardSchema = z.object({
   tpl: z.enum(["A", "B", "C"]),
+  designVersion: z.number().int().min(1).max(2).default(1),
   primary: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   background: z
@@ -62,6 +63,29 @@ const cardSchema = z.object({
   show: z.record(z.string(), z.boolean()),
   logoTile: z.boolean(),
 });
+const canonical = (value: any): any =>
+  Array.isArray(value)
+    ? value.map(canonical)
+    : value && typeof value === "object"
+      ? Object.fromEntries(
+          Object.keys(value)
+            .sort()
+            .map((key) => [key, canonical(value[key])]),
+        )
+      : value;
+const cardVersion = (c: any) =>
+  createHash("sha256")
+    .update(JSON.stringify(canonical(c.data)) + ":" + (c.logo_id || ""))
+    .digest("hex");
+const withVersion = (c: any) => ({ ...c, draft_version: cardVersion(c) });
+function checkVersion(req: NextRequest, c: any) {
+  const expected = req.headers.get("x-popcard-version");
+  if (expected && expected !== cardVersion(c))
+    throw new Fault(
+      409,
+      "Cette PopCard a été modifiée dans un autre onglet. Comparez les versions avant de reprendre.",
+    );
+}
 const origin = () => {
   const configured = process.env.APP_URL;
   if (configured) return new URL(configured).origin;
@@ -501,17 +525,32 @@ async function handler(
       );
     if (p === "cards" && post) {
       const v = cardSchema.parse(await json());
+      const supplied = req.headers.get("x-popcard-draft-id");
+      const id = supplied ? uuid(supplied) : randomUUID();
+      if (supplied) {
+        const prior = await query(
+          "SELECT * FROM cards WHERE id=$1 AND user_id=$2",
+          [id, u.id],
+        );
+        if (prior.rows[0]) return NextResponse.json(withVersion(prior.rows[0]));
+      }
       await rate("card-create:" + u.id, 30);
-      const id = randomUUID();
       const r = await query(
-        "INSERT INTO cards(id,user_id,slug,data) VALUES($1,$2,$3,$4) RETURNING *",
+        "INSERT INTO cards(id,user_id,slug,data) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING RETURNING *",
         [id, u.id, randomUUID().replaceAll("-", "").slice(0, 16), v],
       );
-      return NextResponse.json(r.rows[0]);
+      if (r.rows[0]) return NextResponse.json(withVersion(r.rows[0]));
+      const prior = await query(
+        "SELECT * FROM cards WHERE id=$1 AND user_id=$2",
+        [id, u.id],
+      );
+      if (!prior.rows[0])
+        throw new Fault(409, "Impossible de créer ce brouillon. Réessayez.");
+      return NextResponse.json(withVersion(prior.rows[0]));
     }
     if (path[0] === "cards" && path.length === 2) {
       const card = await owned("cards", path[1], u);
-      if (!post) return NextResponse.json(card);
+      if (!post) return NextResponse.json(withVersion(card));
       const v = cardSchema.parse(await json());
       const saved = await transaction(async (c) => {
         const locked = (
@@ -520,6 +559,7 @@ async function handler(
             [card.id, u.id],
           )
         ).rows[0];
+        checkVersion(req, locked);
         const ordered = (
           await c.query("SELECT 1 FROM orders WHERE card_id=$1 LIMIT 1", [
             card.id,
@@ -528,6 +568,7 @@ async function handler(
         if (ordered || ["live", "suspended"].includes(locked.status)) {
           for (const key of [
             "tpl",
+            "designVersion",
             "primary",
             "accent",
             "background",
@@ -535,7 +576,10 @@ async function handler(
             "fontBody",
             "logoTile",
           ] as const)
-            (v as any)[key] = locked.data[key];
+            (v as any)[key] =
+              key === "designVersion"
+                ? locked.data[key] || 1
+                : locked.data[key];
         }
         await c.query("UPDATE cards SET data=$1,updated_at=now() WHERE id=$2", [
           v,
@@ -543,7 +587,7 @@ async function handler(
         ]);
         return { ...locked, data: v, identity_locked: !!ordered };
       });
-      return NextResponse.json(saved);
+      return NextResponse.json(withVersion(saved));
     }
     if (path[0] === "cards" && path[2] === "share-preview" && post) {
       const card = await owned("cards", path[1], u);
@@ -586,6 +630,7 @@ async function handler(
               [card.id, u.id],
             )
           ).rows[0];
+          checkVersion(req, locked);
           const ordered = (
             await c.query("SELECT 1 FROM orders WHERE card_id=$1 LIMIT 1", [
               card.id,
@@ -612,7 +657,17 @@ async function handler(
         await query("DELETE FROM files WHERE id=$1 OR id=$2", [id, originalId]);
         throw e;
       }
-      return NextResponse.json({ logo_id: id, original_logo_id: originalId });
+      const updated = (
+        await query("SELECT * FROM cards WHERE id=$1 AND user_id=$2", [
+          card.id,
+          u.id,
+        ])
+      ).rows[0];
+      return NextResponse.json({
+        logo_id: id,
+        original_logo_id: originalId,
+        draft_version: cardVersion(updated),
+      });
     }
 
     if (p === "orders" && !post)
