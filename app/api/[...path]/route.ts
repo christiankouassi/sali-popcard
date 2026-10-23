@@ -6,6 +6,8 @@ import { query, transaction } from "@/lib/db";
 import { currentUser, session, logout, token, hash } from "@/lib/auth";
 import { sendMail } from "@/lib/mail";
 import { price, transitions, canPublish, labels } from "@/lib/business.mjs";
+import { cardIssues, validFont, customFontId } from "@/lib/card-validation.mjs";
+import { inspectFont } from "@/lib/font-files";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -13,6 +15,7 @@ class Fault extends Error {
   constructor(
     public status: number,
     message: string,
+    public issues?: any[],
   ) {
     super(message);
   }
@@ -46,27 +49,53 @@ const cardSchema = z.object({
   linkedin: z.string().max(250),
   facebook: z.string().max(250),
   lang: z.enum(["fr", "en"]),
-  // Legacy names remain valid for round-tripping locked historical cards.
-  // The UI and renderer use only the two currently approved brand families.
-  fontTitle: z.enum([
-    "Montserrat",
-    "Moontime",
-    "Open Sans",
-    "Cormorant Garamond",
-    "Poppins",
-  ]),
-  fontBody: z.enum([
-    "Montserrat",
-    "Moontime",
-    "Open Sans",
-    "Cormorant Garamond",
-    "Poppins",
-  ]),
+  fontTitle: z.string().max(100).refine(validFont, "Police indisponible."),
+  fontBody: z.string().max(100).refine(validFont, "Police indisponible."),
+  customFonts: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        family: z.string().max(100),
+        weight: z
+          .string()
+          .regex(/^\d{3}(?: \d{3})?$/)
+          .default("400"),
+      }),
+    )
+    .max(20)
+    .default([]),
   phones: z.array(z.tuple([z.string().max(60), z.string().max(60)])).max(5),
-  emails: z.array(z.union([z.literal(""), emailSchema])).max(5),
+  emails: z.array(z.string().max(254)).max(5),
   show: z.record(z.string(), z.boolean()),
   logoTile: z.boolean(),
 });
+async function verifyFonts(data: any, userId: string) {
+  const ids = [
+    ...new Set(
+      [data.fontTitle, data.fontBody].map(customFontId).filter(Boolean),
+    ),
+  ];
+  if (!ids.length) {
+    data.customFonts = [];
+    return data;
+  }
+  const rows = (
+    await query(
+      "SELECT id,bytes FROM files WHERE id=ANY($1::uuid[]) AND user_id=$2 AND mime LIKE 'font/%'",
+      [ids, userId],
+    )
+  ).rows;
+  if (rows.length !== ids.length)
+    throw new Fault(
+      422,
+      "Importez la police sur votre compte avant de l’utiliser.",
+    );
+  data.customFonts = rows.map((file) => {
+    const { family, weight } = inspectFont(Buffer.from(file.bytes));
+    return { id: file.id, family, weight };
+  });
+  return data;
+}
 const canonical = (value: any): any =>
   Array.isArray(value)
     ? value.map(canonical)
@@ -418,6 +447,27 @@ async function handler(
       );
       if (!r.rows[0]) throw new Fault(404, "Aperçu introuvable ou expiré.");
       const card = r.rows[0];
+      if (card.data.customFonts?.length) {
+        const fonts = (
+          await query(
+            "SELECT id,mime,bytes FROM files WHERE id=ANY($1::uuid[]) AND mime LIKE 'font/%'",
+            [card.data.customFonts.map((font: any) => font.id)],
+          )
+        ).rows;
+        card.data.customFonts = card.data.customFonts.map((font: any) => {
+          const file = fonts.find((file) => file.id === font.id);
+          return file
+            ? {
+                ...font,
+                previewSource:
+                  "data:" +
+                  file.mime +
+                  ";base64," +
+                  Buffer.from(file.bytes).toString("base64"),
+              }
+            : font;
+        });
+      }
       if (card.logo_id) {
         const f = await query("SELECT mime,bytes FROM files WHERE id=$1", [
           card.logo_id,
@@ -430,6 +480,22 @@ async function handler(
             Buffer.from(f.rows[0].bytes).toString("base64");
       }
       return NextResponse.json(card);
+    }
+    if (path[0] === "fonts" && path.length === 2 && !post) {
+      const id = uuid(path[1]);
+      const file = (
+        await query(
+          "SELECT f.* FROM files f WHERE f.id=$1 AND f.mime LIKE 'font/%' AND (f.user_id=$2 OR $3 OR EXISTS(SELECT 1 FROM cards c WHERE c.status='live' AND (c.data->>'fontTitle'='custom:'||f.id::text OR c.data->>'fontBody'='custom:'||f.id::text)))",
+          [id, u?.id ?? null, !!u?.is_admin],
+        )
+      ).rows[0];
+      if (!file) throw new Fault(404, "Police introuvable.");
+      return new NextResponse(new Uint8Array(file.bytes), {
+        headers: {
+          "Content-Type": file.mime,
+          "Cache-Control": "private, no-store",
+        },
+      });
     }
     if (path[0] === "files" && !post) {
       if (!z.string().uuid().safeParse(path[1]).success)
@@ -450,6 +516,74 @@ async function handler(
       });
     }
     if (!u) throw new Fault(401, "Connectez-vous pour continuer.");
+    if (p === "fonts") {
+      if (!post) {
+        const files = (
+          await query(
+            "SELECT id,bytes FROM files WHERE user_id=$1 AND mime LIKE 'font/%' ORDER BY created_at DESC LIMIT 20",
+            [u.id],
+          )
+        ).rows;
+        return NextResponse.json(
+          files.map((file) => {
+            const { family, weight } = inspectFont(Buffer.from(file.bytes));
+            return { id: file.id, family, weight };
+          }),
+        );
+      }
+      await rate("font-upload:" + u.id, 30);
+      const form = await req.formData(),
+        file = form.get("file");
+      if (
+        !(file instanceof File) ||
+        !/\.(ttf|otf|woff2?)$/i.test(file.name) ||
+        file.size > 2 * 1024 * 1024
+      )
+        throw new Fault(
+          422,
+          "Choisissez une police TTF, OTF, WOFF ou WOFF2 de 2 Mo maximum.",
+        );
+      const bytes = Buffer.from(await file.arrayBuffer());
+      let info;
+      try {
+        info = inspectFont(bytes);
+      } catch (e: any) {
+        throw new Fault(422, e.message);
+      }
+      const existing = (
+        await query(
+          "SELECT id FROM files WHERE user_id=$1 AND mime LIKE 'font/%' AND bytes=$2 LIMIT 1",
+          [u.id, bytes],
+        )
+      ).rows[0];
+      if (existing)
+        return NextResponse.json({
+          id: existing.id,
+          family: info.family,
+          weight: info.weight,
+        });
+      const count = (
+        await query(
+          "SELECT count(*) FROM files WHERE user_id=$1 AND mime LIKE 'font/%'",
+          [u.id],
+        )
+      ).rows[0];
+      if (Number(count.count) >= 20)
+        throw new Fault(
+          422,
+          "Votre bibliothèque personnelle contient déjà 20 polices.",
+        );
+      const id = randomUUID();
+      await query(
+        "INSERT INTO files(id,user_id,name,mime,bytes) VALUES($1,$2,$3,$4,$5)",
+        [id, u.id, file.name.slice(0, 150), info.mime, bytes],
+      );
+      return NextResponse.json({
+        id,
+        family: info.family,
+        weight: info.weight,
+      });
+    }
     if (p === "me" && !post) return NextResponse.json(publicUser(u));
     if (p === "auth/resend" && post) {
       await rate("resend:" + u.id, 4);
@@ -528,7 +662,7 @@ async function handler(
         ).rows,
       );
     if (p === "cards" && post) {
-      const v = cardSchema.parse(await json());
+      const v = await verifyFonts(cardSchema.parse(await json()), u.id);
       const supplied = req.headers.get("x-popcard-draft-id");
       const id = supplied ? uuid(supplied) : randomUUID();
       if (supplied) {
@@ -555,7 +689,7 @@ async function handler(
     if (path[0] === "cards" && path.length === 2) {
       const card = await owned("cards", path[1], u);
       if (!post) return NextResponse.json(withVersion(card));
-      const v = cardSchema.parse(await json());
+      const v = await verifyFonts(cardSchema.parse(await json()), u.id);
       const saved = await transaction(async (c) => {
         const locked = (
           await c.query(
@@ -578,6 +712,7 @@ async function handler(
             "background",
             "fontTitle",
             "fontBody",
+            "customFonts",
             "logoTile",
           ] as const)
             (v as any)[key] =
@@ -714,24 +849,21 @@ async function handler(
         .parse(await json());
       if (v.billing_type === "company" && !/^\d{15}$/.test(v.ice))
         throw new Fault(422, "ICE : 15 chiffres requis.");
-      const order = await transaction(async (c) => {
+      const { order, created } = await transaction(async (c) => {
         const r = await c.query(
           "SELECT * FROM cards WHERE id=$1 AND user_id=$2 FOR UPDATE",
           [v.card_id, u.id],
         );
         const card = r.rows[0];
         if (!card) throw new Fault(404, "PopCard introuvable.");
-        if (
-          ![card.data.firstName, card.data.lastName, card.data.company].some(
-            (x) => x?.trim(),
-          )
-        )
-          throw new Fault(422, "Renseignez votre nom ou votre société.");
+        checkVersion(req, card);
+        const issues = cardIssues(card.data, { logo: !!card.logo_id });
+        if (issues.length) throw new Fault(422, issues[0].message, issues);
         const pending = await c.query(
           "SELECT * FROM orders WHERE card_id=$1 AND status IN ('awaiting_receipt','review')",
           [card.id],
         );
-        if (pending.rows[0]) return pending.rows[0];
+        if (pending.rows[0]) return { order: pending.rows[0], created: false };
         const shipping = Number(
           v.country === "Maroc"
             ? process.env.POPCARD_SHIPPING_MA || 0
@@ -767,14 +899,15 @@ async function handler(
             "Commande enregistrée. Virement attendu.",
           ],
         );
-        return o.rows[0];
+        return { order: o.rows[0], created: true };
       });
-      await sendMail(
-        u.id,
-        u.email,
-        "Votre commande " + order.reference,
-        "Votre commande est enregistrée. Déposez votre justificatif depuis votre espace PopCard.",
-      );
+      if (created)
+        await sendMail(
+          u.id,
+          u.email,
+          "Votre commande " + order.reference,
+          "Votre commande est enregistrée. Déposez votre justificatif depuis votre espace PopCard.",
+        );
       return NextResponse.json(order);
     }
     if (path[0] === "orders" && path.length === 2 && !post) {
@@ -928,7 +1061,10 @@ async function handler(
     throw new Fault(404, "Action introuvable.");
   } catch (e) {
     if (e instanceof Fault)
-      return NextResponse.json({ error: e.message }, { status: e.status });
+      return NextResponse.json(
+        { error: e.message, ...(e.issues ? { issues: e.issues } : {}) },
+        { status: e.status },
+      );
     if (e instanceof z.ZodError)
       return NextResponse.json({ error: zodMessage(e) }, { status: 422 });
     if (

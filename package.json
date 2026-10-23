@@ -1,6 +1,6 @@
 {
   "name": "sali-popcard-next",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,10 +15,12 @@
     "test:smtp": "node tests/run-integration.mjs --smtp",
     "build:dist": "npm run build && node scripts/package-dist.mjs",
     "test:dist": "node tests/run-integration.mjs --standalone",
-    "test:journeys": "node tests/e2e-journeys.mjs"
+    "test:journeys": "node tests/e2e-journeys.mjs",
+    "dev:qa": "node tests/preview-server.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "fontkit": "2.0.4",
     "next": "16.4.2",
     "nodemailer": "^10.1.0",
     "pdfjs-dist": "^6.4.299",

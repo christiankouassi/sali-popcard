@@ -32,7 +32,7 @@ class Client {
 const card = {
   tpl: "A", primary: "#123456", accent: "#1D9878", firstName: "Sécu", lastName: "Test", company: "", title: "",
   city: "", desc: "", address: "", website: "", whatsapp: "", instagram: "", linkedin: "", facebook: "",
-  lang: "fr", fontTitle: "Montserrat", fontBody: "Open Sans", phones: [], emails: [], show: {}, logoTile: false,
+  lang: "fr", fontTitle: "Montserrat", fontBody: "Open Sans", phones: [["Mobile", "+212600000000"]], emails: [], show: {phones: true}, logoTile: false,
 };
 const png = Buffer.from("89504e470d0a1a0a0000000d4948445200000001000000010806000000" + "1f15c4890000000d49444154789c6360f8cf00000301010018dd8db40000000049454e44ae426082", "hex");
 const passed = [];
@@ -83,8 +83,9 @@ try {
   assert.match(e.error, /prénom/);
   e = await eve.call("cards", { ...card, primary: "red; background:url(javascript:alert(1))" }, 422);
   e = await eve.call("cards", { ...card, tpl: "Z" }, 422);
-  e = await eve.call("cards", { ...card, emails: ["pas-un-email"] }, 422);
-  assert.match(e.error, /e-mails de la carte/);
+  e = await eve.call("cards", { ...card, emails: ["pas-un-email"] });
+  assert.equal(e.data.emails[0], "pas-un-email");
+
   e = await eve.call("cards", { ...card, phones: Array(6).fill(["Mobile", "0600"]) }, 422);
   await eve.call("auth/register", { name: "Doublon", email: "EVE@Example.com ", password: "TestPassword123", confirmation: "TestPassword123", terms: true }, 409);
   ok("validation des champs avec messages en français, doublon d’e-mail insensible à la casse");

@@ -20,8 +20,9 @@ export async function api(path: string, data?: any, options: RequestInit = {}) {
         (res.status === 413
           ? "Fichier trop volumineux."
           : "Connexion impossible. Vérifiez votre réseau et réessayez."),
-    ) as Error & { status: number };
+    ) as Error & { status: number; issues?: any[] };
     error.status = res.status;
+    error.issues = value.issues;
     throw error;
   }
   return value;

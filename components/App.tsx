@@ -8,6 +8,8 @@ export { api } from "@/lib/client-api";
 import Link from "next/link";
 import Landing from "./Landing";
 import LogoStudio from "./LogoStudio";
+import FontLibrary from "./FontLibrary";
+import { cardIssues } from "@/lib/card-validation.mjs";
 import { CardPreview, MiniSite, Icon, defaults } from "./Preview";
 import { labels, price, transitions } from "@/lib/business.mjs";
 const money = (v: number) =>
@@ -908,7 +910,83 @@ function Editor({ id, userId }: any) {
   const [step, setStep] = useState(0),
     [side, setSide] = useState("recto"),
     [confirmed, setConfirmed] = useState(false),
-    [sending, setSending] = useState(false);
+    [sending, setSending] = useState(false),
+    [showIssues, setShowIssues] = useState(false),
+    [focusField, setFocusField] = useState(""),
+    [logoProcessing, setLogoProcessing] = useState(false),
+    [fontProcessing, setFontProcessing] = useState(false),
+    [fontAnalysis, setFontAnalysis] = useState<any>(null);
+  const stepPanel = useRef<HTMLElement>(null);
+  const scrollAfterStep = useRef(false);
+  useEffect(() => {
+    if (scrollAfterStep.current)
+      stepPanel.current?.scrollIntoView({ block: "start" });
+    scrollAfterStep.current = false;
+  }, [step]);
+  const assetBusy = logoProcessing || fontProcessing;
+  const issues = cardIssues(d, { logo: !!(localLogo || card?.logo_id) });
+  const fieldError = (key: string) =>
+    showIssues
+      ? issues.find((issue) => issue.field === key)?.message
+      : undefined;
+  const highlight = (issue: any) => {
+    setShowIssues(true);
+    setStep(issue.step);
+    setFocusField(issue.field);
+  };
+  const goStep = (next: number, fromFooter = false) => {
+    if (assetBusy || next < 0 || next > 3) return;
+    const missing =
+      next > step ? issues.find((issue) => issue.step < next) : undefined;
+    if (missing) {
+      highlight(missing);
+      return;
+    }
+    setFocusField("");
+    scrollAfterStep.current = fromFooter;
+    setStep(next);
+  };
+  useEffect(() => {
+    setConfirmed(false);
+  }, [d, localLogo]);
+  useEffect(() => {
+    if (!ready) return;
+    const params = new URLSearchParams(location.search);
+    const requested = Number(params.get("step"));
+    if (
+      params.has("step") &&
+      Number.isInteger(requested) &&
+      requested >= 0 &&
+      requested <= 3
+    ) {
+      const missing = cardIssues(d, {
+        logo: !!(localLogo || card?.logo_id),
+      }).find((issue) => issue.step < requested);
+      setStep(missing?.step ?? requested);
+      if (missing) {
+        setShowIssues(true);
+        setFocusField(missing.field);
+      } else if (params.get("field")) {
+        setShowIssues(true);
+        setFocusField(params.get("field")!);
+      }
+    }
+    // Initial navigation hint only: later typing must not move the user’s step.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, id]);
+  useEffect(() => {
+    if (!ready || !focusField) return;
+    const frame = requestAnimationFrame(() => {
+      const target = Array.from(
+        stepPanel.current?.querySelectorAll<HTMLElement>("[data-card-field]") ||
+          [],
+      ).find((el) => el.dataset.cardField === focusField);
+      target?.focus();
+      target?.scrollIntoView({ block: "center" });
+      setFocusField("");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [step, focusField, ready]);
   useEffect(() => {
     setConfirmed(false);
   }, [id]);
@@ -928,15 +1006,31 @@ function Editor({ id, userId }: any) {
     whatsapp: 50,
   };
   const field = (key: string, label: string, type = "text") => (
-    <Field
-      label={label}
-      type={type}
-      value={d[key]}
-      maxLength={limits[key] || 250}
-      onChange={(e: any) => setD({ ...d, [key]: e.target.value })}
-    />
+    <label className="field" key={key}>
+      {label}
+      <input
+        data-card-field={key}
+        aria-label={label}
+        type={type}
+        value={d[key]}
+        maxLength={limits[key] || 250}
+        aria-invalid={!!fieldError(key)}
+        aria-describedby={fieldError(key) ? "error-" + key : undefined}
+        onChange={(e) => setD({ ...d, [key]: e.target.value })}
+      />
+      {fieldError(key) && (
+        <small className="field-error" id={"error-" + key}>
+          {fieldError(key)}
+        </small>
+      )}
+    </label>
   );
   const save = async (go = false) => {
+    if (go && (assetBusy || !confirmed)) return;
+    if (go && issues.length) {
+      highlight(issues[0]);
+      return;
+    }
     try {
       const c = await flush(true);
       setError("Brouillon enregistré.");
@@ -978,12 +1072,15 @@ function Editor({ id, userId }: any) {
           </span>
         )}
       </Heading>
-      <div className="wizardbar">
+      <nav className="wizardbar" aria-label="Étapes de création">
         {["Modèle", "Identité visuelle", "Informations", "Aperçu"].map(
           (t, i) => (
             <button
               className={step === i ? "active" : ""}
-              onClick={() => setStep(i)}
+              onClick={() => goStep(i)}
+              aria-current={step === i ? "step" : undefined}
+              aria-label={i + 1 + " " + t}
+              disabled={assetBusy}
               key={t}
             >
               <b>{i + 1}</b>
@@ -991,13 +1088,29 @@ function Editor({ id, userId }: any) {
             </button>
           ),
         )}
-      </div>
-      <div className="editorgrid">
-        <section className="panel">
+      </nav>
+      <div className={"editorgrid editor-creation step-" + step}>
+        <section className="panel editor-form" ref={stepPanel} tabIndex={-1}>
           <div className="editor-fields">
             <span className="eyebrow">
               {/* taste-skill-ignore */}ÉTAPE 0{step + 1}
             </span>
+            {showIssues && issues.some((issue) => issue.step === step) && (
+              <div className="validation-summary" role="alert">
+                <strong>Quelques informations restent à compléter.</strong>
+                <ul>
+                  {issues
+                    .filter((issue) => issue.step === step)
+                    .map((issue) => (
+                      <li key={issue.field}>
+                        <button type="button" onClick={() => highlight(issue)}>
+                          {issue.message}
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
             {step === 0 && (
               <>
                 <h2>Choisissez votre modèle.</h2>
@@ -1043,6 +1156,8 @@ function Editor({ id, userId }: any) {
                       : undefined
                   }
                   onLogo={onLogo}
+                  onFontAnalysis={setFontAnalysis}
+                  onProcessing={setLogoProcessing}
                   onPalette={(g: any) =>
                     setD({
                       ...d,
@@ -1082,27 +1197,22 @@ function Editor({ id, userId }: any) {
                     />
                   ))}
                 </div>
-                <div className="two-cols">
-                  {["fontTitle", "fontBody"].map((k, i) => (
-                    <label className="field" key={k}>
-                      {i ? "Police des textes" : "Police des titres"}
-                      <select
-                        disabled={locked}
-                        value={d[k]}
-                        onChange={(e) => setD({ ...d, [k]: e.target.value })}
-                      >
-                        {["Montserrat", "Moontime"].map((f) => (
-                          <option key={f}>{f}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
+                <FontLibrary
+                  data={d}
+                  setData={setD}
+                  disabled={locked}
+                  onBusy={setFontProcessing}
+                  analysis={fontAnalysis}
+                />
               </>
             )}
             {step === 2 && (
               <>
                 <h2>Faisons connaissance.</h2>
+                <p>
+                  Un nom ou une société et au moins un moyen de contact visible
+                  sont obligatoires. Les autres informations sont facultatives.
+                </p>
                 <div className="two-cols">
                   {field("firstName", "Prénom")}
                   {field("lastName", "Nom")}
@@ -1129,7 +1239,12 @@ function Editor({ id, userId }: any) {
                     <option value="en">English</option>
                   </select>
                 </label>
-                <h3>Vos coordonnées</h3>
+                <h3 tabIndex={-1} data-card-field="contact">
+                  Vos coordonnées
+                </h3>
+                {fieldError("contact") && (
+                  <p className="field-error">{fieldError("contact")}</p>
+                )}
                 {d.phones.map((p: any, i: number) => (
                   <div className="repeat-row" key={i}>
                     <input
@@ -1147,6 +1262,13 @@ function Editor({ id, userId }: any) {
                     />
                     <input
                       aria-label="Téléphone"
+                      data-card-field={"phones." + i}
+                      aria-invalid={!!fieldError("phones." + i)}
+                      aria-describedby={
+                        fieldError("phones." + i)
+                          ? "phone-error-" + i
+                          : undefined
+                      }
                       type="tel"
                       maxLength={60}
                       value={p[1]}
@@ -1159,7 +1281,16 @@ function Editor({ id, userId }: any) {
                         })
                       }
                     />
+                    {fieldError("phones." + i) && (
+                      <small
+                        className="field-error repeat-error"
+                        id={"phone-error-" + i}
+                      >
+                        {fieldError("phones." + i)}
+                      </small>
+                    )}
                     <button
+                      aria-label={"Supprimer le téléphone " + (i + 1)}
                       onClick={() =>
                         setD({
                           ...d,
@@ -1187,6 +1318,13 @@ function Editor({ id, userId }: any) {
                   <div className="repeat-row" key={i}>
                     <input
                       aria-label="E-mail"
+                      data-card-field={"emails." + i}
+                      aria-invalid={!!fieldError("emails." + i)}
+                      aria-describedby={
+                        fieldError("emails." + i)
+                          ? "email-error-" + i
+                          : undefined
+                      }
                       type="email"
                       maxLength={254}
                       value={v}
@@ -1199,7 +1337,16 @@ function Editor({ id, userId }: any) {
                         })
                       }
                     />
+                    {fieldError("emails." + i) && (
+                      <small
+                        className="field-error repeat-error"
+                        id={"email-error-" + i}
+                      >
+                        {fieldError("emails." + i)}
+                      </small>
+                    )}
                     <button
+                      aria-label={"Supprimer l’e-mail " + (i + 1)}
                       onClick={() =>
                         setD({
                           ...d,
@@ -1310,8 +1457,8 @@ function Editor({ id, userId }: any) {
           <div className="wizardactions">
             <button
               className="button outline"
-              disabled={step === 0 || busy}
-              onClick={() => setStep(step - 1)}
+              disabled={step === 0 || assetBusy}
+              onClick={() => goStep(step - 1, true)}
             >
               Précédent
             </button>
@@ -1325,14 +1472,15 @@ function Editor({ id, userId }: any) {
             {step < 3 ? (
               <button
                 className="button primary"
-                onClick={() => setStep(step + 1)}
+                disabled={assetBusy}
+                onClick={() => goStep(step + 1, true)}
               >
                 Continuer
               </button>
             ) : (
               <button
                 className="button primary"
-                disabled={busy || !confirmed}
+                disabled={busy || assetBusy || !confirmed}
                 onClick={() => save(true)}
               >
                 {locked ? "Recommander" : "Commander"} ↗
@@ -1340,7 +1488,9 @@ function Editor({ id, userId }: any) {
             )}
           </div>
         </section>
-        <aside className="previewpanel">
+        <aside
+          className={"previewpanel" + (side === "site" ? " preview-site" : "")}
+        >
           <div className="previewtabs">
             {["recto", "verso", "site"].map((s) => (
               <button
@@ -1406,32 +1556,125 @@ function Editor({ id, userId }: any) {
 function Checkout({ id, user, config }: any) {
   const router = useRouter();
   const [card, setCard] = useState<any>(),
-    [q, setQ] = useState(1),
-    [country, setCountry] = useState("Maroc"),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [serverIssues, setServerIssues] = useState<any[]>([]),
+    [ready, setReady] = useState(false),
+    [pendingOrder, setPendingOrder] = useState<any>(null);
+  const submitting = useRef(false);
+  const storageKey = "popcard:checkout:" + user.id + ":" + id;
+  const initial = {
+    quantity: "1",
+    country: "Maroc",
+    billing_type: "person",
+    billing_name: user.profile?.billing_name || user.name,
+    ice: user.profile?.ice || "",
+    address: user.profile?.address || "",
+  };
+  const [details, setDetails] = useState<any>(initial),
+    [rights, setRights] = useState(false),
+    [terms, setTerms] = useState(false);
+  const q = Number(details.quantity),
+    country = details.country;
+  const issues = card ? cardIssues(card.data, { logo: !!card.logo_id }) : [];
+  const blocking = serverIssues.length ? serverIssues : issues;
   useEffect(() => {
-    api("cards/" + id)
-      .then(setCard)
-      .catch((e) => setError(e.message));
-  }, [id]);
+    let cancelled = false;
+    setReady(false);
+    setCard(undefined);
+    setDetails(initial);
+    setServerIssues([]);
+    setPendingOrder(null);
+    setError("");
+    setRights(false);
+    setTerms(false);
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey) || "null");
+      if (saved && typeof saved === "object")
+        setDetails({
+          ...initial,
+          ...Object.fromEntries(
+            Object.entries(saved).filter(
+              ([key, value]) => key in initial && typeof value === "string",
+            ),
+          ),
+        });
+    } catch {}
+    Promise.all([api("cards/" + id), api("orders")])
+      .then(([nextCard, orders]) => {
+        if (!cancelled) {
+          setCard(nextCard);
+          setPendingOrder(
+            orders.find(
+              (order: any) =>
+                order.card_id === id &&
+                ["awaiting_receipt", "review"].includes(order.status),
+            ) || null,
+          );
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Restore only when opening this card’s checkout, never on each input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, storageKey]);
+  const update = (key: string, value: string) => {
+    const next = { ...details, [key]: value };
+    setDetails(next);
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {}
+  };
   const submit = async (e: any) => {
     e.preventDefault();
+    if (submitting.current || !card || blocking.length || pendingOrder) return;
+    submitting.current = true;
     setBusy(true);
+    setError("");
     try {
-      const f = new FormData(e.currentTarget);
-      const o = await api("orders", {
-        ...Object.fromEntries(f),
-        card_id: id,
-        quantity: q,
-        country,
-        rights: f.get("rights") === "on",
-        terms: f.get("terms") === "on",
-      });
+      if (!Number.isInteger(q) || q < 1 || q > 500)
+        throw Error("Choisissez une quantité entière entre 1 et 500.");
+      if (!details.billing_name.trim())
+        throw Error("Renseignez le nom de facturation.");
+      if (details.address.trim().length < 5)
+        throw Error("Renseignez une adresse complète de livraison.");
+      if (details.billing_type === "company" && !/^\d{15}$/.test(details.ice))
+        throw Error("ICE : 15 chiffres requis pour une entreprise.");
+      const o = await api(
+        "orders",
+        {
+          ...details,
+          card_id: id,
+          quantity: q,
+          country,
+          rights,
+          terms,
+        },
+        { headers: { "X-Popcard-Version": card.draft_version } },
+      );
+      try {
+        sessionStorage.removeItem(storageKey);
+      } catch {}
       router.push("/app/orders/" + o.id);
     } catch (e: any) {
       setError(e.message);
+      if (e.issues) setServerIssues(e.issues);
+      if (e.status === 409) {
+        setRights(false);
+        setTerms(false);
+        try {
+          setCard(await api("cards/" + id));
+        } catch {}
+      }
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -1440,86 +1683,177 @@ function Checkout({ id, user, config }: any) {
       <Heading eyebrow="VOTRE COMMANDE" title="Prêt à faire bonne impression ?">
         Confirmez les informations de facturation et de livraison.
       </Heading>
+      <Link
+        className="button outline checkout-back"
+        href={"/app/cards/" + id + "?step=3"}
+      >
+        ← Revenir à ma PopCard
+      </Link>
       <Message text={error} />
+      {!ready && <p role="status">Vérification de votre PopCard…</p>}
+      {pendingOrder && (
+        <div className="notice">
+          <p>
+            Une commande est déjà en cours pour cette PopCard. Retrouvez son
+            montant et son suivi dans votre espace.
+          </p>
+          <Link
+            className="button outline"
+            href={"/app/orders/" + pendingOrder.id}
+          >
+            Consulter {pendingOrder.reference} →
+          </Link>
+        </div>
+      )}
+      {!!blocking.length && (
+        <div className="validation-summary" role="alert">
+          <strong>Complétez votre PopCard avant de commander.</strong>
+          <ul>
+            {blocking.map((issue: any) => (
+              <li key={issue.field}>
+                <Link
+                  href={
+                    "/app/cards/" +
+                    id +
+                    "?step=" +
+                    issue.step +
+                    "&field=" +
+                    issue.field
+                  }
+                >
+                  {issue.message} →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {!config?.ordersEnabled && (
         <Message text="Les commandes ouvriront après configuration des coordonnées bancaires par SALI. Vous pouvez continuer à préparer vos cartes." />
       )}
-      <div className="editorgrid">
-        <form className="panel" onSubmit={submit}>
-          <div className="two-cols">
-            <Field
-              label="Quantité"
-              type="number"
-              min={1}
-              max={500}
-              value={q}
-              onChange={(e: any) => setQ(Number(e.target.value))}
-            />
+      {!user.verified_at && (
+        <Message text="Confirmez votre adresse e-mail depuis Mon compte avant de commander." />
+      )}
+      <div className="editorgrid checkout-grid">
+        <form className="panel checkout-form" onSubmit={submit}>
+          <fieldset disabled={busy || !card || !!pendingOrder}>
+            <legend>Quantité et livraison</legend>
+            <div className="two-cols">
+              <Field
+                label="Quantité *"
+                type="number"
+                min={1}
+                max={500}
+                step={1}
+                required
+                value={details.quantity}
+                onChange={(e: any) => update("quantity", e.target.value)}
+              />
+              <label className="field">
+                Pays de livraison
+                <select
+                  value={country}
+                  onChange={(e) => update("country", e.target.value)}
+                >
+                  {[
+                    "Maroc",
+                    "France",
+                    "Belgique",
+                    "Côte d’Ivoire",
+                    "Sénégal",
+                  ].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="field">
-              Pays de livraison
+              Facturation
               <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                value={details.billing_type}
+                onChange={(e) => update("billing_type", e.target.value)}
               >
-                {[
-                  "Maroc",
-                  "France",
-                  "Belgique",
-                  "Côte d’Ivoire",
-                  "Sénégal",
-                ].map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
+                <option value="person">Particulier</option>
+                <option value="company">Entreprise</option>
               </select>
             </label>
-          </div>
-          <label className="field">
-            Facturation
-            <select name="billing_type">
-              <option value="person">Particulier</option>
-              <option value="company">Entreprise</option>
-            </select>
-          </label>
-          <Field
-            label="Nom de facturation"
-            name="billing_name"
-            required
-            defaultValue={user.profile?.billing_name || user.name}
-          />
-          <Field
-            label="ICE · 15 chiffres pour une entreprise"
-            name="ice"
-            maxLength={15}
-            defaultValue={user.profile?.ice || ""}
-          />
-          <Field
-            label="Adresse complète de livraison"
-            name="address"
-            required
-            minLength={5}
-            defaultValue={user.profile?.address || ""}
-          />
-          <label className="check">
-            <input name="rights" type="checkbox" required />
-            Je dispose des droits sur les logos, textes et images fournis.
-          </label>
-          <label className="check">
-            <input name="terms" type="checkbox" required />
-            J’ai vérifié les informations et j’accepte les{" "}
-            <Link href="/conditions">conditions</Link>.
-          </label>
-          <button
-            className="button primary"
-            disabled={busy || !config?.ordersEnabled || !user.verified_at}
-          >
-            Enregistrer et passer au virement ↗
-          </button>
+            <Field
+              label="Nom de facturation *"
+              name="billing_name"
+              required
+              maxLength={200}
+              value={details.billing_name}
+              onChange={(e: any) => update("billing_name", e.target.value)}
+            />
+            <Field
+              label={
+                details.billing_type === "company"
+                  ? "ICE · 15 chiffres *"
+                  : "ICE · facultatif pour un particulier"
+              }
+              name="ice"
+              required={details.billing_type === "company"}
+              pattern={
+                details.billing_type === "company" ? "[0-9]{15}" : undefined
+              }
+              maxLength={15}
+              inputMode="numeric"
+              value={details.ice}
+              onChange={(e: any) => update("ice", e.target.value)}
+            />
+            <Field
+              label="Adresse complète de livraison *"
+              name="address"
+              required
+              minLength={5}
+              maxLength={500}
+              value={details.address}
+              onChange={(e: any) => update("address", e.target.value)}
+            />
+            <label className="check">
+              <input
+                name="rights"
+                type="checkbox"
+                required
+                checked={rights}
+                onChange={(e) => setRights(e.target.checked)}
+              />
+              Je dispose des droits sur les logos, textes et images fournis.
+            </label>
+            <label className="check">
+              <input
+                name="terms"
+                type="checkbox"
+                required
+                checked={terms}
+                onChange={(e) => setTerms(e.target.checked)}
+              />
+              J’ai vérifié les informations et j’accepte les{" "}
+              <Link href="/conditions">conditions</Link>.
+            </label>
+            <button
+              className="button primary"
+              disabled={
+                busy ||
+                !ready ||
+                !card ||
+                !!pendingOrder ||
+                !!blocking.length ||
+                !config?.ordersEnabled ||
+                !user.verified_at
+              }
+            >
+              {busy
+                ? "Enregistrement de la commande…"
+                : "Enregistrer et passer au virement ↗"}
+            </button>
+          </fieldset>
         </form>
-        <aside className="panel">
+        <aside className="panel checkout-summary">
           {card && <CardPreview data={card.data} logo={logo(card)} />}
           <h2>Récapitulatif</h2>
           <p>
-            {q} carte{q > 1 ? "s" : ""}
+            {details.quantity || "—"} carte{q > 1 ? "s" : ""}
           </p>
           <p>
             Livraison :{" "}
@@ -1530,7 +1864,7 @@ function Checkout({ id, user, config }: any) {
             )}
           </p>
           <strong className="total">
-            {q >= 1 && q <= 500
+            {Number.isInteger(q) && q >= 1 && q <= 500
               ? money(
                   price(
                     q,
@@ -1543,9 +1877,12 @@ function Checkout({ id, user, config }: any) {
               : "Quantité invalide"}
           </strong>
           <p>
-            Le montant est confirmé côté serveur. Le dépôt du reçu ne valide pas
-            automatiquement le paiement.
+            Virement bancaire. SALI vérifie sa réception avant la production.
+            Votre mini-site devient public à l’expédition.
           </p>
+          <Link className="textlink" href={"/app/cards/" + id + "?step=3"}>
+            Modifier ma PopCard →
+          </Link>
         </aside>
       </div>
     </>
@@ -1847,7 +2184,7 @@ function Help() {
         {[
           [
             "1. Préparer ma carte",
-            "Créez une PopCard, choisissez un modèle et personnalisez le logo, les couleurs et les coordonnées. Enregistrez votre brouillon avant de quitter.",
+            "Choisissez un modèle et personnalisez votre identité et vos coordonnées. Vos saisies sont enregistrées automatiquement et votre brouillon peut être repris à tout moment.",
           ],
           [
             "2. Vérifier mes aperçus",
@@ -1859,7 +2196,7 @@ function Help() {
           ],
           [
             "4. Suivre la production",
-            "Le reçu est vérifié manuellement. La commande passe ensuite en production puis en expédition. Le mini-site devient public à la fin de la production.",
+            "SALI vérifie la réception du virement et vos informations avant de lancer la production. Le mini-site devient public à l’expédition ; le suivi apparaît dans votre commande.",
           ],
           [
             "5. Modifier après publication",
@@ -1867,7 +2204,11 @@ function Help() {
           ],
           [
             "Le logo et ses couleurs",
-            "Importez une seule fois votre logo en PNG, JPEG, SVG ou PDF. Une palette applique ensemble la couleur principale, le fond et l’accent. La transparence d’un fond uni reste réversible ; vérifiez les contours.",
+            "Importez votre logo en PNG, JPEG, SVG ou PDF. Une palette applique ensemble la couleur principale, le fond et l’accent. Un fond transparent offre le meilleur rendu blanc pour Essentiel. Un SVG au lettrage converti en tracés préserve son apparence.",
+          ],
+          [
+            "Choisir mes polices",
+            "Recherchez parmi 80 familles, filtrez les styles et comparez les aperçus. Vous pouvez importer une police TTF, OTF, WOFF ou WOFF2 de 2 Mo maximum. Le nom de police d’un logo est lu lorsque le fichier le contient ; sinon, le choix est confirmé visuellement.",
           ],
           [
             "Partager un aperçu",

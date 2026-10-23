@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { clientId } from "@/lib/client-id.mjs";
 import {
   clearDraft,
   draftAsset,
@@ -260,8 +261,8 @@ export default function useCardDraft(
     const s: Session = {
       key,
       userId,
-      owner: crypto.randomUUID(),
-      clientId: local?.clientId || crypto.randomUUID(),
+      owner: clientId(),
+      clientId: local?.clientId || clientId(),
       card: null,
       data: structuredClone(defaults),
       ready: false,

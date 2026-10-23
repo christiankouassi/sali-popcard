@@ -12,7 +12,9 @@ export function pool() {
   return (globalPg.popcardPool ??= new Pool({
     connectionString,
     ssl: isLocal ? false : { rejectUnauthorized: false },
-    max: 3,
+    // PGlite's test server shares a single PostgreSQL session. Keep its
+    // transactions exclusive; a real PostgreSQL deployment keeps its pool.
+    max: process.env.POPCARD_TEST_SERIAL_DB === "true" ? 1 : 3,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000,
   }));

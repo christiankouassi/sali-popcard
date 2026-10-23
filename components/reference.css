@@ -73,6 +73,7 @@
   place-items: center;
 }
 .ref-card .A-recto .lg {
+  mix-blend-mode: screen;
   width: 42%;
   height: 42%;
   display: grid;

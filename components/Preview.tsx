@@ -3,7 +3,9 @@ import React from "react";
 import QRCode from "qrcode";
 import { safeUrl } from "@/lib/business.mjs";
 import { contrast, onColor, accessibleColor } from "@/lib/colors.mjs";
-import { brandFont } from "@/lib/typography.mjs";
+import { cardFont } from "@/lib/client-fonts.mjs";
+import CardFonts from "./CardFonts";
+import { monochromeLogoStyle } from "@/lib/logo-monochrome.mjs";
 import "./reference.css";
 export const defaults = {
   tpl: "B",
@@ -271,6 +273,9 @@ function Logo({
   monochrome?: boolean;
 }) {
   const dark = onColor(surface) === "#FFFFFF";
+  const [monoStyle, setMonoStyle] = React.useState<React.CSSProperties>({
+    filter: "brightness(0) invert(1)",
+  });
   return logo ? (
     <div
       className={
@@ -278,7 +283,31 @@ function Logo({
         (monochrome ? " logo-monochrome" : "")
       }
     >
-      <img className="logo-img" src={logo} alt={d.company || "Votre logo"} />
+      <img
+        className="logo-img"
+        src={logo}
+        alt={d.company || "Votre logo"}
+        style={monochrome ? monoStyle : undefined}
+        onLoad={(event) => {
+          if (!monochrome) return;
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = 32;
+            canvas.height = 32;
+            const context = canvas.getContext("2d")!;
+            context.drawImage(event.currentTarget, 0, 0, 32, 32);
+            setMonoStyle(
+              monochromeLogoStyle(
+                context.getImageData(0, 0, 32, 32).data,
+                32,
+                32,
+              ) as React.CSSProperties,
+            );
+          } catch {
+            setMonoStyle({ filter: "brightness(0) invert(1)" });
+          }
+        }}
+      />
     </div>
   ) : (
     <div
@@ -288,7 +317,12 @@ function Logo({
         color: dark ? d.primary : onColor(d.primary),
       }}
     >
-      {d.example ? "VE" : "Logo"}
+      {[d.firstName, d.lastName, d.company]
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((value: string) => value.trim()[0])
+        .join("")
+        .toUpperCase() || "Logo"}
     </div>
   );
 }
@@ -331,10 +365,11 @@ export function CardPreview({
     <div
       className={`ref-card model-${d.tpl} side-${side} version-${d.designVersion}`}
       style={{
-        fontFamily: brandFont(d.fontBody, JSON.stringify(d)),
+        fontFamily: cardFont(d.fontBody, JSON.stringify(d)),
         fontSynthesis: "none",
       }}
     >
+      <CardFonts data={d} />
       {d.tpl === "A" ? (
         side === "recto" ? (
           <div className="fill A-recto" style={{ background: P }}>
@@ -367,19 +402,27 @@ export function CardPreview({
               <i style={{ background: A }} />
             </div>
             <div className="signature-content">
-              <span
-                className="signature-kicker"
-                style={{ color: accessibleColor(A, bg, 4.5) }}
-              >
-                CARTE DE VISITE
-              </span>
               <div
                 className="nm"
                 style={{
-                  fontFamily: brandFont(
+                  fontFamily: cardFont(
                     d.fontTitle,
                     [d.firstName, d.lastName].join(" "),
                   ),
+                  fontSize:
+                    Math.max(
+                      2.8,
+                      Math.min(
+                        6.2,
+                        130 /
+                          Math.max(
+                            1,
+                            ...[d.firstName, d.lastName].map(
+                              (value: string) => Array.from(value || "").length,
+                            ),
+                          ),
+                      ),
+                    ) + "cqw",
                 }}
               >
                 <span>{d.firstName || "Votre"}</span>
@@ -435,7 +478,7 @@ export function CardPreview({
               <div
                 className="nm"
                 style={{
-                  fontFamily: brandFont(
+                  fontFamily: cardFont(
                     d.fontTitle,
                     [d.firstName, d.lastName].join(" "),
                   ),
@@ -448,7 +491,7 @@ export function CardPreview({
                   className="tt"
                   style={{
                     color: accessibleColor(A, P, 4.5),
-                    fontFamily: brandFont(d.fontTitle, d.title),
+                    fontFamily: cardFont(d.fontTitle, d.title),
                   }}
                 >
                   {d.title}
@@ -487,10 +530,30 @@ export function CardPreview({
           <div
             className="nm"
             style={{
-              fontFamily: brandFont(
+              fontFamily: cardFont(
                 d.fontTitle,
                 [d.firstName, d.lastName].join(" "),
               ),
+              fontSize:
+                Math.max(
+                  ...[d.firstName, d.lastName].map(
+                    (value: string) => Array.from(value || "").length,
+                  ),
+                ) > 26
+                  ? Math.max(
+                      2.6,
+                      Math.min(
+                        4.8,
+                        130 /
+                          Math.max(
+                            1,
+                            ...[d.firstName, d.lastName].map(
+                              (value: string) => Array.from(value || "").length,
+                            ),
+                          ),
+                      ),
+                    ) + "cqw"
+                  : undefined,
             }}
           >
             <span>{d.firstName || "Votre"}</span>
@@ -617,13 +680,14 @@ export function MiniSite({
           "--p": d.primary,
           "--a": d.accent,
           "--a-text": accessibleColor(d.accent, d.background || "#FFFFFF", 4.5),
-          "--ft": brandFont(d.fontTitle, name),
-          "--fb": brandFont(d.fontBody, JSON.stringify(d)),
+          "--ft": cardFont(d.fontTitle, name),
+          "--fb": cardFont(d.fontBody, JSON.stringify(d)),
           fontSynthesis: "none",
           "--bleu": "#1C2C46",
         } as React.CSSProperties
       }
     >
+      <CardFonts data={d} />
       <div className="ms-head">
         <div className="lgw">
           <Logo d={d} logo={logo} tile={d.logoTile} surface={d.primary} />

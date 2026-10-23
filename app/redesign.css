@@ -1169,6 +1169,7 @@ button:disabled {
   border-radius: 6cqw 0 0 0;
 }
 .signature-content {
+  justify-content: center;
   position: absolute;
   left: 40%;
   right: 0;
@@ -1192,7 +1193,7 @@ button:disabled {
   letter-spacing: -0.18cqw;
   line-height: 1.08;
   overflow-wrap: anywhere;
-  max-height: 20cqw;
+  max-height: 29cqw;
   overflow: hidden;
 }
 .signature-content .nm > span {
@@ -1713,19 +1714,14 @@ button:disabled {
   font-size: 10px;
 }
 .previewpanel .reference-mini {
-  max-height: 65vh;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
   border-radius: 10px;
   border: 1px solid #d6dfd0;
 }
 .editor-fields {
-  max-height: calc(100dvh - 335px);
-  min-height: 300px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: #b7cbb0 transparent;
-  padding-right: 9px;
+  min-height: 0;
+  overflow: visible;
 }
 .wizardactions {
   position: static;
@@ -2581,4 +2577,270 @@ button:disabled {
 .local-drafts > a > svg {
   width: 15px;
   height: 15px;
+}
+
+/* Creation uses the page scroll; inputs and previews have their full height. */
+.editor-creation > *,
+.checkout-grid > * {
+  min-width: 0;
+}
+.editor-form {
+  scroll-margin-top: 24px;
+}
+.editor-form:focus {
+  outline: 2px solid #44b68a;
+  outline-offset: 4px;
+}
+.editor-creation .preview-site {
+  position: static;
+}
+.wizardbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: visible;
+}
+.wizardbar button {
+  min-width: 0;
+  min-height: 46px;
+}
+.wizardbar button span {
+  white-space: normal;
+  text-align: left;
+}
+.field-error {
+  display: block;
+  color: #9c3030;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.field [aria-invalid="true"],
+.repeat-row [aria-invalid="true"] {
+  border-color: #ac3c3c;
+  box-shadow: 0 0 0 1px #ac3c3c;
+}
+.validation-summary {
+  padding: 18px 20px;
+  margin: 14px 0 24px;
+  background: #fff3ed;
+  border: 1px solid #edc1ad;
+  border-radius: 12px;
+  color: #722f1f;
+}
+.validation-summary strong {
+  font-size: 13px;
+}
+.validation-summary ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+.validation-summary button,
+.validation-summary a {
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  text-decoration: underline;
+  line-height: 1.6;
+}
+.repeat-row {
+  position: relative;
+  flex-wrap: wrap;
+}
+.repeat-row .repeat-error {
+  flex-basis: 100%;
+  grid-column: 1/-1;
+  grid-row: 2;
+}
+.repeat-row > button {
+  grid-row: 1;
+}
+.font-library {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #e2eadc;
+}
+.font-library > p,
+.logo-font-analysis p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.font-current {
+  display: block;
+  padding: 12px 0 0;
+  font-size: 17px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.font-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.font-option {
+  border: 1px solid #dce5d6;
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+  background: #fcfdf9;
+}
+.font-option > strong {
+  font: 600 10px Montserrat;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.font-option > span {
+  display: block;
+  min-height: 58px;
+  font-size: 19px;
+  line-height: 1.4;
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.font-option > div {
+  display: flex;
+  gap: 7px;
+}
+.font-option button,
+.font-pagination button,
+.font-suggestions button,
+.font-detection button {
+  font: 500 10px Montserrat;
+  border: 1px solid #c8d9c2;
+  border-radius: 6px;
+  background: white;
+  padding: 9px;
+  color: #173e35;
+  min-height: 36px;
+}
+.font-option button[aria-pressed="true"] {
+  background: #173e35;
+  color: white;
+  border-color: #173e35;
+}
+.font-results {
+  color: #53684f;
+  font-size: 11px;
+}
+.font-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.font-pagination span {
+  font-size: 10px;
+}
+.font-import {
+  margin-top: 22px;
+}
+.font-import small {
+  font-size: 10px;
+  line-height: 1.7;
+}
+.font-import input {
+  max-width: 100%;
+  font-size: 10px;
+}
+.logo-font-analysis {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #edf3e7;
+}
+.font-detection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.font-detection > span {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.font-detection small {
+  font-size: 10px;
+}
+.font-suggestions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.checkout-back {
+  margin: 0 0 20px;
+}
+.checkout-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.checkout-form legend {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.checkout-form .check {
+  flex-wrap: wrap;
+}
+.checkout-form .button {
+  white-space: normal;
+  line-height: 1.5;
+}
+@media (max-width: 1050px) and (min-width: 801px) {
+  .editor-creation {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+  .font-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 800px) {
+  .editor-creation .previewpanel {
+    grid-row: auto;
+  }
+  .editor-creation.step-3 .previewpanel {
+    grid-row: 1;
+  }
+  .wizardbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wizardbar button {
+    justify-content: flex-start;
+    padding: 10px;
+  }
+  .wizardbar button > span {
+    font-size: 11px;
+  }
+}
+@media (max-width: 420px) {
+  .font-grid {
+    grid-template-columns: 1fr;
+  }
+  .wizardactions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .wizardactions .button {
+    flex: 1 1 40%;
+    justify-content: center;
+  }
+  .wizardactions .button.primary {
+    flex-basis: 100%;
+  }
+  .font-pagination button {
+    font-size: 9px;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 800px) {
+  .wizardbar button > span {
+    display: block;
+  }
 }

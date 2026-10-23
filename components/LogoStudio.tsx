@@ -20,6 +20,8 @@ export default function LogoStudio({
   onPalette,
   initialLogo,
   initialResult,
+  onFontAnalysis,
+  onProcessing,
 }: any) {
   const [source, setSource] = useState<HTMLCanvasElement | null>(null),
     [preview, setPreview] = useState(""),
@@ -93,10 +95,26 @@ export default function LogoStudio({
       canvasContext: canvas.getContext("2d")!,
       viewport,
     }).promise;
+    const content = await p.getTextContent();
+    const names = [
+      ...new Set(
+        Object.values(content.styles)
+          .map((style: any) => style.fontFamily)
+          .filter(Boolean),
+      ),
+    ];
+    for (const item of content.items) {
+      if ("fontName" in item && p.commonObjs.has(item.fontName)) {
+        const name = p.commonObjs.get(item.fontName)?.name;
+        if (name && !names.includes(name)) names.push(name);
+      }
+    }
+    onFontAnalysis?.({ kind: "PDF", names });
     await accept(canvas);
   }
   async function load(file: File) {
     setProcessing(true);
+    onProcessing?.(true);
     setError("");
     setGroups([]);
     setAdvice(null);
@@ -116,6 +134,7 @@ export default function LogoStudio({
         return;
       }
       let blob: Blob = file;
+      onFontAnalysis?.({ kind: "image", names: [] });
       if (/\.svg$/i.test(file.name)) {
         const doc = new DOMParser().parseFromString(
           await file.text(),
@@ -126,6 +145,22 @@ export default function LogoStudio({
           doc.documentElement.localName !== "svg"
         )
           throw Error("SVG invalide.");
+        const names = [
+          ...Array.from(doc.querySelectorAll("[font-family]")).map(
+            (el) => el.getAttribute("font-family") || "",
+          ),
+          ...Array.from(
+            (await file.text()).matchAll(/font-family\s*:\s*([^;}]+)/gi),
+          ).map((match) => match[1]),
+        ]
+          .flatMap((value) =>
+            value
+              .split(",")
+              .map((name) => name.trim().replace(/^["']|["']$/g, "")),
+          )
+          .filter(Boolean)
+          .slice(0, 12);
+        onFontAnalysis?.({ kind: "SVG", names });
         for (const el of Array.from(doc.querySelectorAll("*"))) {
           if (
             [
@@ -193,6 +228,7 @@ export default function LogoStudio({
       setError(e.message);
     } finally {
       setProcessing(false);
+      onProcessing?.(false);
     }
   }
   return (
@@ -202,6 +238,7 @@ export default function LogoStudio({
         <input
           disabled={disabled || processing}
           type="file"
+          data-card-field="logo"
           accept="image/png,image/jpeg,image/webp,image/svg+xml,application/pdf"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -222,6 +259,7 @@ export default function LogoStudio({
             value={page}
             onChange={async (e) => {
               setProcessing(true);
+              onProcessing?.(true);
               const n = Number(e.target.value);
               setPage(n);
               try {
@@ -230,6 +268,7 @@ export default function LogoStudio({
                 setError(e.message);
               } finally {
                 setProcessing(false);
+                onProcessing?.(false);
               }
             }}
           >
