@@ -14,6 +14,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        <link
+          rel="preload"
+          href="/assets/moontime-400.woff"
+          as="font"
+          type="font/woff"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <PopCardApp />
         {children}

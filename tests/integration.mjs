@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import pg from "pg";
-import {readFile} from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 const db = new pg.Client({
   connectionString: "postgresql://postgres@127.0.0.1:55432/postgres",
 });
@@ -45,17 +45,27 @@ const tokenFor = async (recipient, kind) => {
       .map((m) =>
         m
           .replace(/=\r?\n/g, "")
-          .replace(/=([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))),
+          .replace(/=([0-9A-F]{2})/g, (_, h) =>
+            String.fromCharCode(parseInt(h, 16)),
+          ),
       )
       .filter((m) => m.toLowerCase().includes("to: " + recipient))
-      .map((m) => m.match(new RegExp("/" + kind + "\\?token=([a-f0-9]{64})"))?.[1])
+      .map(
+        (m) => m.match(new RegExp("/" + kind + "\\?token=([a-f0-9]{64})"))?.[1],
+      )
       .filter(Boolean);
     const logged = await admin.call("admin/mail");
-    assert.ok(logged.every((m) => !/token=[a-f0-9]{64}/.test(m.body)), "Lien non masqué dans le journal");
+    assert.ok(
+      logged.every((m) => !/token=[a-f0-9]{64}/.test(m.body)),
+      "Lien non masqué dans le journal",
+    );
     return found.at(-1);
   }
   return (await admin.call("admin/mail"))
-    .find((m) => m.recipient === recipient && m.body.includes("/" + kind + "?token="))
+    .find(
+      (m) =>
+        m.recipient === recipient && m.body.includes("/" + kind + "?token="),
+    )
     .body.split("token=")[1];
 };
 const data = {
@@ -110,28 +120,54 @@ try {
   assert.equal((await a.call("me")).email, "client@example.com");
   await a.call("admin/orders", undefined, 403);
   const c = await a.call("cards", data);
+  const brand = await a.call("cards/" + c.id, {
+    ...data,
+    fontTitle: "Moontime",
+    fontBody: "Montserrat",
+  });
+  assert.equal(brand.data.fontTitle, "Moontime");
+  assert.equal(brand.data.fontBody, "Montserrat");
+  await a.call("cards/" + c.id, data);
   await b.call("cards/" + c.id, undefined, 404);
   await b.call("cards/" + c.id, data, 404);
   await a.call("public/" + c.slug, undefined, 404);
-  const invalid=new FormData();invalid.set('file',new Blob(['not an image'],{type:'image/png'}),'bad.png');
-  await a.call('cards/'+c.id+'/logo',invalid,422);
-  const logoForm=new FormData();
-  const image=await readFile('tests/fixtures/logo.png');
-  logoForm.set('file',new Blob([image],{type:'image/png'}),'logo.png');
-  logoForm.set('original',new Blob([image],{type:'image/png'}),'original.png');
-  const uploaded=await a.call('cards/'+c.id+'/logo',logoForm);
-  assert.notEqual(uploaded.logo_id,uploaded.original_logo_id);
-  assert.equal((await fetch(base+'/api/files/'+uploaded.original_logo_id)).status,404);
-  const share=await a.call("cards/"+c.id+"/share-preview",{});
-  assert.equal(share.status,process.env.TEST_SMTP==="true"?"sent":"log");
-  const secret=new URL(share.url).searchParams.get("token");
-  const anonymous=new Browser();
-  assert.equal((await anonymous.call("preview/"+secret)).data.firstName,"Christian");
-  assert.match((await anonymous.call("preview/"+secret)).logo,/^data:image\/png;base64,/);
-  await anonymous.call("preview/invalid",undefined,404);
-  await b.call("cards/"+c.id+"/share-preview",{},404);
+  const invalid = new FormData();
+  invalid.set(
+    "file",
+    new Blob(["not an image"], { type: "image/png" }),
+    "bad.png",
+  );
+  await a.call("cards/" + c.id + "/logo", invalid, 422);
+  const logoForm = new FormData();
+  const image = await readFile("tests/fixtures/logo.png");
+  logoForm.set("file", new Blob([image], { type: "image/png" }), "logo.png");
+  logoForm.set(
+    "original",
+    new Blob([image], { type: "image/png" }),
+    "original.png",
+  );
+  const uploaded = await a.call("cards/" + c.id + "/logo", logoForm);
+  assert.notEqual(uploaded.logo_id, uploaded.original_logo_id);
+  assert.equal(
+    (await fetch(base + "/api/files/" + uploaded.original_logo_id)).status,
+    404,
+  );
+  const share = await a.call("cards/" + c.id + "/share-preview", {});
+  assert.equal(share.status, process.env.TEST_SMTP === "true" ? "sent" : "log");
+  const secret = new URL(share.url).searchParams.get("token");
+  const anonymous = new Browser();
+  assert.equal(
+    (await anonymous.call("preview/" + secret)).data.firstName,
+    "Christian",
+  );
+  assert.match(
+    (await anonymous.call("preview/" + secret)).logo,
+    /^data:image\/png;base64,/,
+  );
+  await anonymous.call("preview/invalid", undefined, 404);
+  await b.call("cards/" + c.id + "/share-preview", {}, 404);
   await db.query("UPDATE preview_links SET expires_at=now()-interval '1 day'");
-  await anonymous.call("preview/"+secret,undefined,404);
+  await anonymous.call("preview/" + secret, undefined, 404);
   const order = {
     card_id: c.id,
     quantity: 2,
@@ -147,7 +183,11 @@ try {
   const verification = await tokenFor("client@example.com", "verification");
   await a.call("auth/verify", { token: verification });
   await a.call("auth/verify", { token: verification }, 422);
-  if(process.env.TEST_SMTP==="true"){const mail=await db.query("SELECT status FROM mail_outbox");assert.ok(mail.rows.length>=4);assert.ok(mail.rows.every(m=>m.status==="sent"));}
+  if (process.env.TEST_SMTP === "true") {
+    const mail = await db.query("SELECT status FROM mail_outbox");
+    assert.ok(mail.rows.length >= 4);
+    assert.ok(mail.rows.every((m) => m.status === "sent"));
+  }
   const o = await a.call("orders", order);
   assert.equal(o.amount, 650);
   assert.equal((await a.call("orders", order)).id, o.id);
@@ -187,17 +227,23 @@ try {
       await a.call("public/" + c.slug, undefined, 404);
   }
   assert.equal((await a.call("public/" + c.slug)).id, c.id);
-  assert.equal((await fetch(base+"/api/files/"+uploaded.logo_id)).status,200);
-  assert.equal((await fetch(base+"/api/files/"+uploaded.original_logo_id)).status,404);
+  assert.equal(
+    (await fetch(base + "/api/files/" + uploaded.logo_id)).status,
+    200,
+  );
+  assert.equal(
+    (await fetch(base + "/api/files/" + uploaded.original_logo_id)).status,
+    404,
+  );
   await a.call("cards/" + c.id, {
     ...data,
     primary: "#ffffff",
-    background:"#000000",
+    background: "#000000",
     title: "Nouvelle fonction",
   });
   const updated = await a.call("cards/" + c.id);
   assert.equal(updated.data.primary, "#123456");
-  assert.equal(updated.data.background,"#FFFFFF");
+  assert.equal(updated.data.background, "#FFFFFF");
   assert.equal(updated.data.title, "Nouvelle fonction");
   await admin.call("admin/cards/" + c.id, { status: "suspended" });
   await a.call("public/" + c.slug, undefined, 404);
@@ -219,18 +265,41 @@ try {
     email: "client@example.com",
     password: "NewPassword123",
   });
-  const otherSession=new Browser();await otherSession.call('auth/login',{email:'client@example.com',password:'NewPassword123'});
-  await a.call('password',{current_password:'wrong',password:'FinalPassword123',confirmation:'FinalPassword123'},422);
-  await a.call('password',{current_password:'NewPassword123',password:'FinalPassword123',confirmation:'FinalPassword123'});
-  await otherSession.call('me',undefined,401);
-  const profile={name:'Client test',email:'changed@example.com',billing_name:'Entreprise test',ice:'123456789012345',address:'Casablanca',current_password:'FinalPassword123'};
-  await a.call('profile',{...profile,ice:'123'},422);
-  await a.call('profile',{...profile,current_password:'wrong'},422);
-  await a.call('profile',profile);
-  assert.equal((await a.call('me')).verified_at,null);
-  const changedLink=await tokenFor('changed@example.com','verification');
-  await a.call('auth/verify',{token:changedLink});
-  assert.ok((await a.call('me')).verified_at);
+  const otherSession = new Browser();
+  await otherSession.call("auth/login", {
+    email: "client@example.com",
+    password: "NewPassword123",
+  });
+  await a.call(
+    "password",
+    {
+      current_password: "wrong",
+      password: "FinalPassword123",
+      confirmation: "FinalPassword123",
+    },
+    422,
+  );
+  await a.call("password", {
+    current_password: "NewPassword123",
+    password: "FinalPassword123",
+    confirmation: "FinalPassword123",
+  });
+  await otherSession.call("me", undefined, 401);
+  const profile = {
+    name: "Client test",
+    email: "changed@example.com",
+    billing_name: "Entreprise test",
+    ice: "123456789012345",
+    address: "Casablanca",
+    current_password: "FinalPassword123",
+  };
+  await a.call("profile", { ...profile, ice: "123" }, 422);
+  await a.call("profile", { ...profile, current_password: "wrong" }, 422);
+  await a.call("profile", profile);
+  assert.equal((await a.call("me")).verified_at, null);
+  const changedLink = await tokenFor("changed@example.com", "verification");
+  await a.call("auth/verify", { token: changedLink });
+  assert.ok((await a.call("me")).verified_at);
   const csrf = await fetch(base + "/api/cards", {
     method: "POST",
     headers: {

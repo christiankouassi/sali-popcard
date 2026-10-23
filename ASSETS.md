@@ -1,4 +1,10 @@
-# Photographie de la version 2.3
+# Ressources visuelles et typographiques
+
+## Police Moontime (2.4.1)
+
+`public/assets/moontime-400.ttf` est le fichier `MoonTime-Regular.ttf` fourni par l’utilisateur dans `Moontime-Font.zip`. Le fichier `.woff` est une conversion sans changement de glyphes ou de métriques. Ces fichiers sont servis par le site et le WOFF est incorporé à la planche de présentation. Le jeu de caractères fourni ne comprend pas les lettres accentuées françaises ; Montserrat est utilisée pour les blocs concernés.
+
+## Photographie (version 2.3)
 
 `public/assets/popcard-rencontre-v3.webp` est une photographie générée avec l’outil intégré imagegen pour cette présentation, puis convertie en WebP pour le site. Elle montre un échange de carte en situation ; la carte et le mini-site exacts sont rendus séparément en React. Aucun QR, texte commercial ou logo n’a été inventé dans la photographie.
 

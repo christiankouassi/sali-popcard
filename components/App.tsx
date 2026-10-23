@@ -1007,13 +1007,13 @@ function Editor({ id, userId }: any) {
                 </p>
                 <div className="templatechoices">
                   {[
-                    ["A", "Logo", "Votre marque au premier plan"],
+                    ["A", "Essentiel", "Votre marque au premier plan"],
                     [
                       "B",
                       "Signature",
                       "Une composition graphique qui affirme votre identité",
                     ],
-                    ["C", "Épuré", "Une composition minimaliste"],
+                    ["C", "Studio", "Une composition minimaliste"],
                   ].map(([v, t, s]) => (
                     <button
                       disabled={locked}
@@ -1091,12 +1091,7 @@ function Editor({ id, userId }: any) {
                         value={d[k]}
                         onChange={(e) => setD({ ...d, [k]: e.target.value })}
                       >
-                        {[
-                          "Montserrat",
-                          "Open Sans",
-                          "Cormorant Garamond",
-                          "Poppins",
-                        ].map((f) => (
+                        {["Montserrat", "Moontime"].map((f) => (
                           <option key={f}>{f}</option>
                         ))}
                       </select>

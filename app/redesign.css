@@ -206,11 +206,12 @@ button:disabled {
 }
 .lp-hero h1 > em {
   font:
-    italic 400 1.21em/0.98 "Cormorant Garamond",
-    Georgia,
-    serif;
+    400 1.5em/1.1 Moontime,
+    Montserrat,
+    sans-serif;
   color: #b7eccd;
-  letter-spacing: -2.4px;
+  letter-spacing: 0;
+  font-synthesis: none;
   animation-delay: 0.28s;
 }
 .lp-hero-copy > p {
@@ -380,7 +381,7 @@ button:disabled {
 .lp-product-caption b {
   font-size: 10px;
   color: #ddebe0;
-  font-family: "Open Sans", sans-serif;
+  font-family: Montserrat, sans-serif;
 }
 .lp-example-label {
   position: absolute;
@@ -430,9 +431,17 @@ button:disabled {
 }
 .lp-section h2 em {
   font:
-    italic 400 1.25em/1.1 "Cormorant Garamond",
-    Georgia,
-    serif;
+    400 1.5em/1.1 Moontime,
+    Montserrat,
+    sans-serif;
+  letter-spacing: 0;
+  font-synthesis: none;
+}
+.lp-faq h2 em {
+  font:
+    500 1em/1.2 Montserrat,
+    sans-serif;
+  letter-spacing: -0.7px;
 }
 .lp-section-heading > p {
   max-width: 270px;
@@ -629,9 +638,8 @@ button:disabled {
 }
 .lp-process-number {
   font:
-    400 26px "Cormorant Garamond",
-    Georgia,
-    serif;
+    500 26px Montserrat,
+    sans-serif;
   color: #7d9783;
 }
 .lp-step-copy {
@@ -1115,14 +1123,16 @@ button:disabled {
 .signature-recto .signature-spine {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 31%;
+  width: 40%;
   display: flex;
   flex-direction: column;
-  padding: 6cqw 4cqw;
+  padding: 5cqw 4cqw;
+  align-items: center;
+  justify-content: center;
 }
 .signature-logo {
-  height: 17cqw;
-  width: 23cqw;
+  height: 26cqw;
+  width: 29cqw;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1141,7 +1151,11 @@ button:disabled {
 }
 .signature-company {
   font: 500 2.3cqw/1.5 Montserrat;
-  margin-top: auto;
+  position: absolute;
+  left: 4cqw;
+  right: 4cqw;
+  bottom: 5cqw;
+  text-align: center;
   overflow-wrap: anywhere;
   padding-bottom: 2cqw;
   opacity: 0.85;
@@ -1156,33 +1170,37 @@ button:disabled {
 }
 .signature-content {
   position: absolute;
-  left: 31%;
+  left: 40%;
   right: 0;
   top: 0;
   bottom: 0;
-  padding: 5.5cqw 5cqw 4.5cqw;
+  padding: 5.5cqw 4.5cqw 4.5cqw;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 .signature-kicker {
   font: 600 1.7cqw Montserrat;
   letter-spacing: 0.24cqw;
-  margin-bottom: 4cqw;
+  margin-bottom: 3cqw;
 }
 .signature-content .nm {
-  font-size: 5.3cqw;
+  width: 100%;
+  font-size: 6.2cqw;
   font-weight: 700;
   letter-spacing: -0.18cqw;
   line-height: 1.08;
   overflow-wrap: anywhere;
-  max-height: 19cqw;
+  max-height: 20cqw;
   overflow: hidden;
 }
 .signature-content .nm > span {
   display: block;
 }
 .signature-content .tt {
-  font-size: 2.4cqw;
+  width: 100%;
+  font-size: 2.5cqw;
   margin-top: 2cqw;
   line-height: 1.4;
   overflow: hidden;
@@ -1191,15 +1209,16 @@ button:disabled {
 }
 .signature-rule {
   height: 0.45cqw;
-  width: 7cqw;
-  margin: 3cqw 0;
+  width: 100%;
+  margin: 2.5cqw 0;
   flex-shrink: 0;
 }
 .signature-lines {
-  font-size: 1.9cqw;
-  line-height: 1.8;
+  max-width: 100%;
+  font-size: 2.25cqw;
+  line-height: 1.55;
   display: grid;
-  gap: 0.5cqw;
+  gap: 0.7cqw;
   margin-top: auto;
 }
 .signature-lines > div {
@@ -1234,9 +1253,11 @@ button:disabled {
 }
 .signature-invite > strong {
   font:
-    600 6cqw/1 "Cormorant Garamond",
-    Georgia,
-    serif;
+    400 9cqw/1.2 Moontime,
+    Montserrat,
+    sans-serif;
+  letter-spacing: 0;
+  font-synthesis: none;
 }
 .signature-invite > span:nth-child(3) {
   font-size: 2cqw;
@@ -1369,7 +1390,7 @@ button:disabled {
 }
 .topbar-location > b {
   font:
-    600 10px "Open Sans",
+    600 10px Montserrat,
     sans-serif;
   color: #355642;
 }

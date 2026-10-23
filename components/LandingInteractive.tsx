@@ -232,7 +232,7 @@ export function ModelExplorer({ sample }: { sample: any }) {
               side={side}
               watermark={false}
               logo={
-                tpl === "B" && side === "recto"
+                (tpl === "A" || tpl === "B") && side === "recto"
                   ? "/assets/logo-white-crop.svg"
                   : "/assets/logo-color.svg"
               }

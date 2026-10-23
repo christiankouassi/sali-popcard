@@ -1,4 +1,4 @@
-# SALI DigiCom PopCard — 2.3.0
+# SALI DigiCom PopCard — 2.4.1
 
 Application Next.js 16.4.2, React 19, API Node.js et PostgreSQL via `pg`.
 
@@ -26,6 +26,16 @@ La construction repart d’un dossier `.next` propre et vérifie les manifestes 
 5. `npm run dev`
 
 Le premier compte peut être promu administrateur avec `npm run admin -- votre-email@example.com`. Il n’y a pas de compte administrateur prédéfini.
+
+## Corrections de la version 2.4
+
+- Signature : colonnes rééquilibrées, logo plus présent, informations centrées dans leur zone et séparateur sur toute la largeur utile. Format de carte conservé à 85,6 × 54 mm.
+- Essentiel : logo complet en monochrome blanc, réduit et centré sur les deux axes, sans pastille ajoutée au recto.
+- Studio : phrase sous le QR code supprimée. Les noms Essentiel, Signature et Studio sont identiques sur l’accueil et dans l’éditeur.
+- QR : les deux couleurs choisies sont utilisées, avec un cœur de module contrasté pour préserver le scan. Les accents trop pâles restent visibles autour du médaillon ; une principale trop claire est assombrie pour garder un code lisible.
+- Montserrat remplace les familles non approuvées sur le site, le dashboard et les aperçus. Moontime est désormais fourni par le site à partir du fichier transmis, en WOFF et TTF, et est incorporé dans la planche autonome. Les courtes phrases graphiques utilisent Moontime ; les textes contenant des caractères absents du fichier, notamment les accents français, conservent Montserrat sur tout le bloc afin d’éviter un mélange dans un mot. Aucune autre famille n’est ajoutée.
+
+Les anciennes valeurs de police sont encore acceptées dans les données pour permettre la lecture et la sauvegarde des cartes historiques verrouillées. L’affichage est limité à Montserrat et Moontime.
 
 ## Modifications de la version 2.3
 

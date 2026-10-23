@@ -3,6 +3,7 @@ import React from "react";
 import QRCode from "qrcode";
 import { safeUrl } from "@/lib/business.mjs";
 import { contrast, onColor, accessibleColor } from "@/lib/colors.mjs";
+import { brandFont } from "@/lib/typography.mjs";
 import "./reference.css";
 export const defaults = {
   tpl: "B",
@@ -154,8 +155,14 @@ export function StyledQR({
     m = 4,
     c = n / 2,
     hole = n * 0.17; // Agrandissement du médaillon central pour visibilité optimale du logo
-  const dark = contrast(primary, "#fff") >= 4.5 ? primary : "#1C2C46";
-  const a = contrast(accent, "#fff") >= 4.5 ? accent : dark;
+  const dark =
+    contrast(primary, "#FFFFFF") >= 4.5
+      ? primary
+      : accessibleColor(primary, "#FFFFFF", 9);
+  const a = accent;
+  // Keep both brand colours. A dark module centre preserves scanning when the
+  // accent is light; extremely pale accents remain on the central medallion.
+  const accentOnModules = contrast(accent, "#FFFFFF") >= 1.5;
   const dots = [];
   for (let r = 0; r < n; r++)
     for (let k = 0; k < n; k++) {
@@ -167,14 +174,19 @@ export function StyledQR({
         Math.hypot(r + 0.5 - c, k + 0.5 - c) < hole + 0.5
       )
         continue;
+      const secondary = accentOnModules && (r * 7 + k * 13 + r * k) % 5 < 2;
       dots.push(
-        <circle
-          key={r * n + k}
-          cx={k + m + 0.5}
-          cy={r + m + 0.5}
-          r={0.48}
-          fill={(r * 7 + k * 13 + r * k) % 5 < 2 ? a : dark}
-        />,
+        <g key={r * n + k}>
+          <circle
+            cx={k + m + 0.5}
+            cy={r + m + 0.5}
+            r={0.48}
+            fill={secondary ? a : dark}
+          />
+          {secondary && (
+            <circle cx={k + m + 0.5} cy={r + m + 0.5} r={0.39} fill={dark} />
+          )}
+        </g>,
       );
     }
   const finder = (x: number, y: number) => (
@@ -226,7 +238,7 @@ export function StyledQR({
           x={cx}
           y={cx + hole * 0.28}
           textAnchor="middle"
-          fontFamily="Montserrat,Arial"
+          fontFamily="Montserrat, sans-serif"
           fontWeight="700"
           fontSize={hole * 0.8}
           fill={dark}
@@ -250,15 +262,22 @@ function Logo({
   logo,
   tile = false,
   surface = "#FFFFFF",
+  monochrome = false,
 }: {
   d: any;
   logo?: string;
   tile?: boolean;
   surface?: string;
+  monochrome?: boolean;
 }) {
   const dark = onColor(surface) === "#FFFFFF";
   return logo ? (
-    <div className={tile ? "logo-tile" : "logo-holder"}>
+    <div
+      className={
+        (tile ? "logo-tile" : "logo-holder") +
+        (monochrome ? " logo-monochrome" : "")
+      }
+    >
       <img className="logo-img" src={logo} alt={d.company || "Votre logo"} />
     </div>
   ) : (
@@ -311,13 +330,16 @@ export function CardPreview({
   return (
     <div
       className={`ref-card model-${d.tpl} side-${side} version-${d.designVersion}`}
-      style={{ fontFamily: d.fontBody }}
+      style={{
+        fontFamily: brandFont(d.fontBody, JSON.stringify(d)),
+        fontSynthesis: "none",
+      }}
     >
       {d.tpl === "A" ? (
         side === "recto" ? (
           <div className="fill A-recto" style={{ background: P }}>
             <div className="lg">
-              <Logo d={d} logo={logo} tile={d.logoTile} surface={P} />
+              <Logo d={d} logo={logo} surface={P} monochrome />
             </div>
           </div>
         ) : (
@@ -351,7 +373,15 @@ export function CardPreview({
               >
                 CARTE DE VISITE
               </span>
-              <div className="nm" style={{ fontFamily: d.fontTitle }}>
+              <div
+                className="nm"
+                style={{
+                  fontFamily: brandFont(
+                    d.fontTitle,
+                    [d.firstName, d.lastName].join(" "),
+                  ),
+                }}
+              >
                 <span>{d.firstName || "Votre"}</span>
                 <span>{d.lastName || "nom"}</span>
               </div>
@@ -402,7 +432,15 @@ export function CardPreview({
               </div>
             </div>
             <div className="exec-body">
-              <div className="nm" style={{ fontFamily: d.fontTitle }}>
+              <div
+                className="nm"
+                style={{
+                  fontFamily: brandFont(
+                    d.fontTitle,
+                    [d.firstName, d.lastName].join(" "),
+                  ),
+                }}
+              >
                 {[d.firstName, d.lastName].join(" ").trim() || "Votre nom"}
               </div>
               {d.title && (
@@ -410,7 +448,7 @@ export function CardPreview({
                   className="tt"
                   style={{
                     color: accessibleColor(A, P, 4.5),
-                    fontFamily: d.fontTitle,
+                    fontFamily: brandFont(d.fontTitle, d.title),
                   }}
                 >
                   {d.title}
@@ -446,7 +484,15 @@ export function CardPreview({
           <div className="lg">
             <Logo d={d} logo={logo} />
           </div>
-          <div className="nm" style={{ fontFamily: d.fontTitle }}>
+          <div
+            className="nm"
+            style={{
+              fontFamily: brandFont(
+                d.fontTitle,
+                [d.firstName, d.lastName].join(" "),
+              ),
+            }}
+          >
             <span>{d.firstName || "Votre"}</span>
             <span>{d.lastName || "nom"}</span>
           </div>
@@ -467,11 +513,6 @@ export function CardPreview({
         <div className="fill C-verso" style={{ background: P }}>
           <div className="tile">
             <div className="qr">{qr}</div>
-          </div>
-          <div className="cap" style={{ color: onColor(P) }}>
-            {d.lang === "en"
-              ? "Scan to save my contact"
-              : "Scannez pour enregistrer mon contact"}
           </div>
         </div>
       )}
@@ -576,8 +617,9 @@ export function MiniSite({
           "--p": d.primary,
           "--a": d.accent,
           "--a-text": accessibleColor(d.accent, d.background || "#FFFFFF", 4.5),
-          "--ft": `"${d.fontTitle}",serif`,
-          "--fb": `"${d.fontBody}",sans-serif`,
+          "--ft": brandFont(d.fontTitle, name),
+          "--fb": brandFont(d.fontBody, JSON.stringify(d)),
+          fontSynthesis: "none",
           "--bleu": "#1C2C46",
         } as React.CSSProperties
       }

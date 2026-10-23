@@ -46,14 +46,18 @@ const cardSchema = z.object({
   linkedin: z.string().max(250),
   facebook: z.string().max(250),
   lang: z.enum(["fr", "en"]),
+  // Legacy names remain valid for round-tripping locked historical cards.
+  // The UI and renderer use only the two currently approved brand families.
   fontTitle: z.enum([
     "Montserrat",
+    "Moontime",
     "Open Sans",
     "Cormorant Garamond",
     "Poppins",
   ]),
   fontBody: z.enum([
     "Montserrat",
+    "Moontime",
     "Open Sans",
     "Cormorant Garamond",
     "Poppins",

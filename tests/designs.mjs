@@ -33,6 +33,7 @@ for (const url of [
     for (const size of [220, 700])
       for (const colors of [
         ["#1C2C46", "#1D9878"],
+        ["#173E35", "#44B68A"],
         ["#FFFFFF", "#FFFF00"],
       ]) {
         const svg = renderToStaticMarkup(
@@ -50,7 +51,11 @@ for (const url of [
           .raw()
           .toBuffer({ resolveWithObject: true });
         const code = jsQR(new Uint8ClampedArray(data), info.width, info.height);
-        assert.equal(code?.data, url, "QR personnalisé illisible");
+        assert.equal(
+          code?.data,
+          url,
+          `QR personnalisé illisible : ${colors.join("/")} à ${size}px, logo=${Boolean(mark)}, URL=${url.length}`,
+        );
       }
 for (const designVersion of [1, 2])
   for (const tpl of ["A", "B", "C"])
@@ -94,7 +99,7 @@ for (const text of [
 ])
   assert.ok(mini.includes(text), text);
 console.log(
-  "PASS : douze rendus des modèles (versions 1 et 2), structure du mini-site, seize décodages QR (couleurs normales et très claires).",
+  "PASS : douze rendus des modèles (versions 1 et 2), structure du mini-site, vingt-quatre décodages QR (trois palettes, deux tailles, deux URL, avec/sans logo).",
 );
 
 const empty = renderToStaticMarkup(
